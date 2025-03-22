@@ -15,9 +15,9 @@ const firebaseConfig = {
 };
 
 // Plugin constants
-const INACTIVE_THRESHOLD = 5 * 60 * 1000; // 5 minutes in milliseconds
+const INACTIVE_THRESHOLD = 5 * 1000; // 5 seconds in milliseconds (was 5 minutes)
 const FILE_CHECK_INTERVAL = 2000; // Check for file changes every 2 seconds
-const ACTIVITY_CHECK_INTERVAL = 30 * 1000; // Check for activity every 30 seconds
+const ACTIVITY_CHECK_INTERVAL = 5 * 1000; // Check for activity every 5 seconds (was 30 seconds)
 
 // Global state
 let isTracking = false;
@@ -331,7 +331,7 @@ function checkActivity() {
   const inactiveTime = now - lastActivityTime;
   
   if (inactiveTime > INACTIVE_THRESHOLD && isTracking) {
-    console.log('User inactive, stopping tracking');
+    console.log(`User inactive for ${inactiveTime}ms, stopping tracking`);
     stopTracking();
   }
 }
