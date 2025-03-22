@@ -330,6 +330,32 @@ function checkActivity() {
   const now = Date.now();
   const inactiveTime = now - lastActivityTime;
   
+  // More aggressive check - try to detect if we're in a different file/context
+  try {
+    // First, check if we can still access the document
+    // This will throw an error if we've lost access to the document
+    const currentNode = figma.currentPage;
+    if (!currentNode) {
+      console.log('Cannot access document, likely switched context');
+      if (isTracking) stopTracking();
+      return;
+    }
+    
+    // Check if current file is still what we expect
+    const currentFileNode = figma.currentPage.parent;
+    if (currentFileNode && currentFileNode.id !== activeFileId) {
+      console.log('File ID mismatch, handling file change');
+      handleFileChange();
+      return;
+    }
+  } catch (error) {
+    // If any error occurs, assume we've lost context
+    console.error('Error checking activity, likely lost context:', error);
+    if (isTracking) stopTracking();
+    return;
+  }
+  
+  // Normal inactivity check
   if (inactiveTime > INACTIVE_THRESHOLD && isTracking) {
     console.log(`User inactive for ${inactiveTime}ms, stopping tracking`);
     stopTracking();
@@ -572,6 +598,14 @@ figma.ui.onmessage = (msg: any) => {
       
     case 'stop-tracking':
       stopTracking();
+      break;
+      
+    case 'ui-visibility-changed':
+      // Handle visibility changes in the UI
+      if (msg.isVisible === false && isTracking) {
+        console.log('UI reports tab/window no longer visible, stopping tracking');
+        stopTracking();
+      }
       break;
       
     case 'firebase-data-loaded':
