@@ -16,8 +16,9 @@ const firebaseConfig = {
 
 // Plugin constants
 const INACTIVE_THRESHOLD = 5 * 1000; // 5 seconds in milliseconds (was 5 minutes)
-const FILE_CHECK_INTERVAL = 2000; // Check for file changes every 2 seconds
+const FILE_CHECK_INTERVAL = 1000; // Check for file changes every 1 second (was 2 seconds)
 const ACTIVITY_CHECK_INTERVAL = 5 * 1000; // Check for activity every 5 seconds (was 30 seconds)
+const HEARTBEAT_INTERVAL = 3000; // Heartbeat to check if plugin is still active
 
 // Global state
 let isTracking = false;
@@ -29,11 +30,13 @@ let previousFileId: string | null = null;
 let files: Array<FileData> = [];
 let activityInterval: number;
 let fileCheckInterval: number;
+let heartbeatInterval: number;
 let userId: string | null = null;
 let activeFileId: string | null = null;
 let currentFileName: string | null = null;
 let currentPageName: string | null = null;
 let activePageId: string | null = null;
+let lastKnownFileId: string | null = null;
 
 // Define types
 interface PageData {
@@ -86,105 +89,165 @@ async function getUserId(): Promise<string> {
 
 // Check if the current file has changed
 function checkFileChange() {
-  const currentFileNode = figma.currentPage.parent;
-  if (!currentFileNode) return;
+  try {
+    // Get current file node
+    const currentFileNode = figma.currentPage?.parent;
+    if (!currentFileNode) {
+      console.log('No current file node, likely lost context');
+      if (isTracking) stopTracking();
+      return;
+    }
 
-  const currentFileId = currentFileNode.id;
-  
-  // If we have a different file than before, handle the change
-  if (currentFileId !== activeFileId) {
-    console.log(`File changed from ${activeFileId || 'none'} to ${currentFileId}`);
-    handleFileChange();
+    // Get current file ID
+    const currentFileId = currentFileNode.id;
+    
+    // If we've never seen a file before, initialize it
+    if (activeFileId === null) {
+      console.log('Initializing active file for the first time');
+      activeFileId = currentFileId;
+      updateFileAndPage();
+      return;
+    }
+    
+    // If we have a different file than before, handle the change
+    if (currentFileId !== activeFileId) {
+      console.log(`File changed from ${activeFileId} to ${currentFileId}`);
+      
+      // Store the old file ID before handling change
+      lastKnownFileId = activeFileId;
+      
+      // Handle the file change
+      handleFileChange();
+      return;
+    }
+    
+    // If we return to same file, make sure the active status is correct
+    lastKnownFileId = currentFileId;
+    
+  } catch (error) {
+    // If we get an error, we've lost context
+    console.error('Error in checkFileChange, likely switched context:', error);
+    
+    // Stop tracking if we were tracking
+    if (isTracking) {
+      console.log('Lost context while tracking, stopping tracking');
+      stopTracking();
+    }
   }
+}
+
+// Add a heartbeat check to periodically verify plugin is still running in context
+function setupHeartbeat() {
+  // Clear any existing heartbeat
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  
+  // Set up new heartbeat
+  heartbeatInterval = setInterval(() => {
+    try {
+      // Try to access the document - this will throw if we've lost context
+      const currentDoc = figma.currentPage;
+      
+      if (!currentDoc) {
+        console.log('Heartbeat: lost document context');
+        if (isTracking) stopTracking();
+      }
+    } catch (error) {
+      console.error('Heartbeat error, likely lost context:', error);
+      if (isTracking) stopTracking();
+    }
+  }, HEARTBEAT_INTERVAL);
+  
+  console.log(`Heartbeat interval set: ${HEARTBEAT_INTERVAL}ms`);
 }
 
 // Handle file change
 function handleFileChange() {
-  const currentFileNode = figma.currentPage.parent;
-  if (!currentFileNode) return;
-  
-  const newFileId = currentFileNode.id;
-  let fileName = "Untitled";
-  
-  // Try to safely access the name property
-  if ('name' in currentFileNode) {
-    fileName = (currentFileNode as any).name;
-  }
-  
-  // Store previous file ID before changing
-  const prevFileId = activeFileId;
-  
-  // If file changed
-  if (activeFileId !== newFileId) {
-    console.log(`File changed from ${activeFileId || 'none'} to ${newFileId}`);
+  try {
+    const currentFileNode = figma.currentPage.parent;
+    if (!currentFileNode) return;
     
-    // Create a time entry for the previous file if we were tracking it
-    if (isTracking && prevFileId) {
-      console.log(`Creating time entry for previous file ${prevFileId}`);
+    const newFileId = currentFileNode.id;
+    let fileName = "Untitled";
+    
+    // Try to safely access the name property
+    if ('name' in currentFileNode) {
+      fileName = (currentFileNode as any).name;
+    }
+    
+    // Store previous file ID before changing
+    const prevFileId = activeFileId;
+    
+    // If file changed
+    if (activeFileId !== newFileId) {
+      console.log(`File changed from ${activeFileId || 'none'} to ${newFileId}`);
       
-      const currentTime = Date.now();
-      const duration = currentTime - trackingStartTime;
-      
-      // Only create an entry if we tracked for at least 3 seconds
-      if (duration >= 3000) {
-        createTimeEntry(prevFileId, duration);
+      // Create a time entry for the previous file if we were tracking it
+      if (isTracking && prevFileId) {
+        console.log(`Creating time entry for previous file ${prevFileId}`);
+        
+        const currentTime = Date.now();
+        const duration = currentTime - trackingStartTime;
+        
+        // Only create an entry if we tracked for at least 3 seconds
+        if (duration >= 3000) {
+          createTimeEntry(prevFileId, duration);
+        }
+        
+        // Stop tracking current file and prepare to start tracking new file
+        isTracking = false;
+        console.log(`Stopped tracking on previous file ${prevFileId}`);
+        
+        // Tell UI to stop showing timer
+        figma.ui.postMessage({
+          type: 'tracking-status',
+          isTracking: false
+        });
+        
+        // Start tracking on the new file
+        setTimeout(() => {
+          startTracking();
+        }, 100);
       }
       
-      // Don't fully stop tracking - we'll continue with the new file
-      // Just reset the timer for the next file
-      trackingStartTime = currentTime;
-    }
-    
-    // Update the active file ID
-    activeFileId = newFileId;
-    currentFileName = fileName;
-    
-    // Update the active page
-    activePageId = figma.currentPage.id;
-    currentPageName = figma.currentPage.name;
-    
-    // Find or create file data
-    let fileData = files.find(f => f.id === newFileId);
-    if (!fileData) {
-      // Create new file data
-      fileData = {
-        id: newFileId,
-        name: fileName,
-        pages: {},
-        totalTime: 0
-      };
-      files.push(fileData);
-    }
-    
-    // Notify UI about file change
-    figma.ui.postMessage({
-      type: 'file-changed',
-      fileId: newFileId,
-      fileName: fileName,
-      isTracking: isTracking,
-      startTime: isTracking ? trackingStartTime : 0
-    });
-    
-    // The main difference from before: if we were tracking, continue tracking the new file
-    if (isTracking) {
-      // We already reset trackingStartTime above if we were tracking
-      lastActivityTime = Date.now();
+      // Update the active file ID
+      activeFileId = newFileId;
+      currentFileName = fileName;
       
-      // Send tracking status to UI
+      // Update the active page
+      activePageId = figma.currentPage.id;
+      currentPageName = figma.currentPage.name;
+      
+      // Find or create file data
+      let fileData = files.find(f => f.id === newFileId);
+      if (!fileData) {
+        // Create new file data
+        fileData = {
+          id: newFileId,
+          name: fileName,
+          pages: {},
+          totalTime: 0
+        };
+        files.push(fileData);
+      }
+      
+      // Notify UI about file change
       figma.ui.postMessage({
-        type: 'tracking-status',
-        isTracking: true,
-        startTime: trackingStartTime,
+        type: 'file-changed',
+        fileId: newFileId,
         fileName: fileName,
-        pageName: currentPageName
+        isTracking: isTracking,
+        startTime: isTracking ? trackingStartTime : 0
       });
+      
+      // Update the file list in UI
+      updateFilesList();
+      
+      // Save data
+      savePluginData();
     }
-    
-    // Update the file list in UI
-    updateFilesList();
-    
-    // Save data
-    savePluginData();
+  } catch (error) {
+    console.error('Error in handleFileChange:', error);
+    if (isTracking) stopTracking();
   }
 }
 
@@ -562,8 +625,6 @@ async function initializePlugin() {
     updateTrackingStatus();
   });
   
-  // File changes are caught by the interval below
-  
   // Start activity check interval (check for user inactivity)
   activityInterval = setInterval(checkActivity, ACTIVITY_CHECK_INTERVAL);
   console.log(`Activity check interval set: ${ACTIVITY_CHECK_INTERVAL}ms`);
@@ -571,6 +632,9 @@ async function initializePlugin() {
   // Start file check interval to detect file changes (more frequent)
   fileCheckInterval = setInterval(checkFileChange, FILE_CHECK_INTERVAL);
   console.log(`File check interval set: ${FILE_CHECK_INTERVAL}ms`);
+  
+  // Start heartbeat to detect if plugin loses context
+  setupHeartbeat();
   
   // Update file and page initially
   updateFileAndPage();
@@ -692,6 +756,7 @@ figma.on('close', () => {
   // Clear intervals
   clearInterval(activityInterval);
   clearInterval(fileCheckInterval);
+  clearInterval(heartbeatInterval);
 });
 
 // Format time in HH:MM:SS
