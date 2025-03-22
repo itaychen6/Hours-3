@@ -118,10 +118,21 @@ function handleFileChange() {
   if (activeFileId !== newFileId) {
     console.log(`File changed from ${activeFileId || 'none'} to ${newFileId}`);
     
-    // If we were tracking the previous file, stop tracking
+    // Create a time entry for the previous file if we were tracking it
     if (isTracking && prevFileId) {
-      console.log(`Stopping tracking for previous file ${prevFileId}`);
-      stopTracking();
+      console.log(`Creating time entry for previous file ${prevFileId}`);
+      
+      const currentTime = Date.now();
+      const duration = currentTime - trackingStartTime;
+      
+      // Only create an entry if we tracked for at least 3 seconds
+      if (duration >= 3000) {
+        createTimeEntry(prevFileId, duration);
+      }
+      
+      // Don't fully stop tracking - we'll continue with the new file
+      // Just reset the timer for the next file
+      trackingStartTime = currentTime;
     }
     
     // Update the active file ID
@@ -154,11 +165,10 @@ function handleFileChange() {
       startTime: isTracking ? trackingStartTime : 0
     });
     
-    // Start tracking on the new file if we were tracking before
+    // The main difference from before: if we were tracking, continue tracking the new file
     if (isTracking) {
-      // Reset tracking start time
-      trackingStartTime = Date.now();
-      lastActivityTime = trackingStartTime;
+      // We already reset trackingStartTime above if we were tracking
+      lastActivityTime = Date.now();
       
       // Send tracking status to UI
       figma.ui.postMessage({
@@ -176,6 +186,47 @@ function handleFileChange() {
     // Save data
     savePluginData();
   }
+}
+
+// Helper function to create a time entry for a specific file
+function createTimeEntry(fileId: string, duration: number) {
+  // Find the file and page names
+  const fileData = files.find(f => f.id === fileId);
+  if (!fileData) return;
+  
+  // Calculate the time range
+  const endTime = Date.now();
+  const startTime = endTime - duration;
+  
+  // Create the time entry
+  const timeEntry: TimeEntry = {
+    id: `entry_${Date.now()}`,
+    userId: userId,
+    fileId: fileId,
+    fileName: fileData.name,
+    pageId: activePageId || '',
+    pageName: currentPageName || '',
+    startTime: startTime,
+    endTime: endTime,
+    duration: duration,
+    date: new Date().toISOString().split('T')[0]
+  };
+  
+  // Update file data
+  fileData.totalTime += duration;
+  
+  // Update page data if it exists
+  if (activePageId && fileData.pages[activePageId]) {
+    fileData.pages[activePageId].totalTime += duration;
+  }
+  
+  // Send the time entry to the UI for saving to Firebase
+  figma.ui.postMessage({
+    type: 'save-time-entry',
+    timeEntry: timeEntry
+  });
+  
+  console.log(`Created time entry: ${formatTime(duration)} on ${fileData.name}`);
 }
 
 // Update the current file and page
@@ -236,52 +287,15 @@ function startTracking() {
 }
 
 // Stop tracking time
-function stopTracking() {
+function stopTracking(createEntry = true) {
   if (!isTracking) return;
   
   const currentTime = Date.now();
   const duration = currentTime - trackingStartTime;
   
   // Only count if we've been tracking for at least 5 seconds
-  if (duration >= 5000) {
-    // Create a time entry
-    const timeEntry: TimeEntry = {
-      id: `entry_${Date.now()}`,
-      userId: userId,
-      fileId: activeFileId || '',
-      fileName: currentFileName || '',
-      pageId: activePageId || '',
-      pageName: currentPageName || '',
-      startTime: trackingStartTime,
-      endTime: currentTime,
-      duration: duration,
-      date: new Date().toISOString().split('T')[0]
-    };
-    
-    // Send the time entry to the UI for saving to Firebase
-    figma.ui.postMessage({
-      type: 'save-time-entry',
-      timeEntry: timeEntry
-    });
-    
-    console.log(`Stopped tracking: ${formatTime(duration)} on ${currentFileName || 'unknown file'} - ${currentPageName || 'unknown page'}`);
-    
-    // Update file and page data with the tracked time
-    if (activeFileId) {
-      const fileData = files.find(f => f.id === activeFileId);
-      if (fileData) {
-        // Add to file total time
-        fileData.totalTime += duration;
-        
-        // Add to page total time if the page exists
-        if (activePageId && fileData.pages[activePageId]) {
-          fileData.pages[activePageId].totalTime += duration;
-        }
-        
-        // Update UI with file data
-        updateFilesList();
-      }
-    }
+  if (createEntry && duration >= 5000) {
+    createTimeEntry(activeFileId, duration);
   }
   
   // Reset tracking state
@@ -295,6 +309,8 @@ function stopTracking() {
     fileName: currentFileName || '',
     pageName: currentPageName || ''
   });
+  
+  console.log(`Stopped tracking on ${currentFileName || 'unknown file'}`);
   
   // Save data
   savePluginData();
@@ -458,10 +474,13 @@ function loadPluginData() {
 function handleActivity() {
   lastActivityTime = Date.now();
   
-  // If we're not tracking, check if we should start
+  // If we're not tracking, start tracking on the current file
   if (!isTracking) {
-    // Make sure we have current file and page
+    // Make sure we have current file and page info
     updateFileAndPage();
+    
+    // Start tracking the current file
+    console.log(`Starting tracking due to user activity on ${currentFileName || 'unknown file'}`);
     startTracking();
   }
 }
@@ -483,7 +502,7 @@ async function getFirebaseConfig(): Promise<any> {
 // Set up the plugin
 async function initializePlugin() {
   console.log('Initializing plugin...');
-  const userId = await generateUserId();
+  userId = await generateUserId();
   
   // Load Firebase config
   const firebaseConfig = await getFirebaseConfig();
@@ -498,23 +517,34 @@ async function initializePlugin() {
     userId: userId
   });
   
+  console.log(`User ID: ${userId}`);
+  
   // Load saved data
   loadPluginData();
   
   // Set up event listeners for user activity
-  figma.on('selectionchange', handleActivity);
+  figma.on('selectionchange', () => {
+    console.log('Selection changed, marking as active');
+    handleActivity();
+  });
+  
   figma.on('currentpagechange', () => {
+    console.log('Page changed');
     handleActivity();
     updateFileAndPage();
     updateFileData();
     updateTrackingStatus();
   });
   
-  // Start activity check interval
-  activityInterval = setInterval(checkActivity, ACTIVITY_CHECK_INTERVAL);
+  // File changes are caught by the interval below
   
-  // Start file check interval to detect file changes
+  // Start activity check interval (check for user inactivity)
+  activityInterval = setInterval(checkActivity, ACTIVITY_CHECK_INTERVAL);
+  console.log(`Activity check interval set: ${ACTIVITY_CHECK_INTERVAL}ms`);
+  
+  // Start file check interval to detect file changes (more frequent)
   fileCheckInterval = setInterval(checkFileChange, FILE_CHECK_INTERVAL);
+  console.log(`File check interval set: ${FILE_CHECK_INTERVAL}ms`);
   
   // Update file and page initially
   updateFileAndPage();
