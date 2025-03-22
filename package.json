@@ -1,0 +1,1 @@
+{\n  \"name\": \"hours-3\",\n  \"version\": \"1.0.0\",\n  \"description\": \"Figma plugin for automatic time tracking of files and pages\",\n  \"main\": \"code.js\",\n  \"scripts\": {\n    \"build\": \"tsc -p tsconfig.json\"\n  },\n  \"devDependencies\": {\n    \"typescript\": \"^4.9.5\"\n  },\n  \"dependencies\": {}\n}
