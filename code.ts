@@ -24,6 +24,7 @@ let previousFileId: string | null = null;
 let files: Array<FileData> = [];
 let activityInterval: number;
 let fileCheckInterval: number;
+let userId: string | null = null;
 
 // Define types
 interface PageData {
@@ -94,16 +95,16 @@ function handleFileChange(newFileId: string) {
   
   // Stop tracking the previous file if we were tracking
   if (isTracking && previousFileId) {
+    console.log(`Stopping tracking for previous file ${previousFileId}`);
     stopTracking(false);
   }
   
   // Update current file and page
   updateFileAndPage();
   
-  // If we were tracking before, start tracking the new file
-  if (previousFileId) {
-    startTracking();
-  }
+  // Always start tracking the new file
+  console.log(`Starting tracking for new file ${newFileId}`);
+  startTracking();
   
   // Notify the UI about the file change
   figma.ui.postMessage({
@@ -328,6 +329,26 @@ function savePluginData() {
     files: files,
     activeFileId: currentFile?.id
   });
+  
+  // Also save to Firebase if we have a user ID
+  saveDataToFirebase();
+}
+
+// Save data to Firebase
+function saveDataToFirebase() {
+  if (!userId) {
+    console.log('No user ID available, not saving to Firebase');
+    return;
+  }
+  
+  // Send command to UI to save data to Firebase
+  figma.ui.postMessage({
+    type: 'save-to-firebase',
+    userId: userId,
+    files: files
+  });
+  
+  console.log('Sent data to UI for Firebase saving');
 }
 
 // Load plugin data
@@ -376,15 +397,25 @@ async function initializePlugin() {
   // Load saved data
   loadPluginData();
   
-  // Get the user ID
-  const userId = await getUserId();
-  
-  // Send Firebase config to UI
-  figma.ui.postMessage({
-    type: 'firebase-config',
-    config: firebaseConfig,
-    userId
-  });
+  try {
+    // Get the user ID
+    userId = await getUserId();
+    
+    // Send Firebase config to UI
+    figma.ui.postMessage({
+      type: 'firebase-config',
+      config: firebaseConfig,
+      userId: userId
+    });
+    
+    // Load data from Firebase
+    figma.ui.postMessage({
+      type: 'load-from-firebase',
+      userId: userId
+    });
+  } catch (error) {
+    console.error('Error getting user ID:', error);
+  }
   
   // Set up event listeners for user activity
   figma.on('selectionchange', handleActivity);
@@ -412,8 +443,89 @@ async function initializePlugin() {
   console.log('Plugin initialized and tracking started');
 }
 
+// Merge data from Firebase with local data
+function mergeFirebaseData(firebaseFiles: Array<FileData>) {
+  if (!firebaseFiles || firebaseFiles.length === 0) {
+    console.log('No Firebase data to merge');
+    return;
+  }
+  
+  // For each Firebase file
+  firebaseFiles.forEach(firebaseFile => {
+    // Find matching local file
+    const localFile = files.find(f => f.fileId === firebaseFile.fileId);
+    
+    if (localFile) {
+      // Update local file with Firebase data
+      console.log(`Updating local file ${firebaseFile.fileId} with Firebase data`);
+      
+      // Keep the latest active state
+      const isActive = localFile.isActive;
+      const lastActive = Math.max(localFile.lastActive, firebaseFile.lastActive);
+      
+      // Use larger tracked time
+      const totalTrackedTime = Math.max(localFile.totalTrackedTime, firebaseFile.totalTrackedTime);
+      
+      // Update file data
+      localFile.fileName = firebaseFile.fileName;
+      localFile.lastActive = lastActive;
+      localFile.totalTrackedTime = totalTrackedTime;
+      localFile.isActive = isActive;
+      
+      // Merge pages
+      if (firebaseFile.pages && firebaseFile.pages.length > 0) {
+        firebaseFile.pages.forEach(firebasePage => {
+          const localPage = localFile.pages.find(p => p.pageId === firebasePage.pageId);
+          
+          if (localPage) {
+            // Keep the latest active state
+            const isPageActive = localPage.isActive;
+            
+            // Use larger tracked time
+            const trackedTime = Math.max(localPage.trackedTime, firebasePage.trackedTime);
+            
+            // Update page data
+            localPage.pageName = firebasePage.pageName;
+            localPage.trackedTime = trackedTime;
+            localPage.isActive = isPageActive;
+          } else {
+            // Add new page from Firebase
+            localFile.pages.push({
+              pageId: firebasePage.pageId,
+              pageName: firebasePage.pageName,
+              isActive: false,
+              trackedTime: firebasePage.trackedTime
+            });
+          }
+        });
+      }
+    } else {
+      // Add new file from Firebase
+      console.log(`Adding new file ${firebaseFile.fileId} from Firebase`);
+      
+      // Make sure it's not active initially
+      firebaseFile.isActive = false;
+      
+      // Make sure all pages are not active
+      if (firebaseFile.pages) {
+        firebaseFile.pages.forEach(page => {
+          page.isActive = false;
+        });
+      }
+      
+      files.push(firebaseFile);
+    }
+  });
+  
+  // Update current file and page after merging
+  updateFileAndPage();
+  updateFileData();
+}
+
 // Handle messages from the UI
 figma.ui.onmessage = (msg: any) => {
+  console.log('Received message from UI:', msg.type);
+  
   switch (msg.type) {
     case 'check-tracking-status':
       updateTrackingStatus();
@@ -425,6 +537,19 @@ figma.ui.onmessage = (msg: any) => {
       
     case 'stop-tracking':
       stopTracking();
+      break;
+      
+    case 'firebase-data-loaded':
+      // Handle data received from Firebase
+      if (msg.files && Array.isArray(msg.files)) {
+        console.log(`Received ${msg.files.length} files from Firebase`);
+        
+        // Merge Firebase data with local data
+        mergeFirebaseData(msg.files);
+        
+        // Update UI with merged data
+        savePluginData();
+      }
       break;
   }
 };
