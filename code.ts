@@ -193,29 +193,39 @@ function handleFileChange() {
           createTimeEntry(prevFileId, duration);
         }
         
-        // Stop tracking current file and prepare to start tracking new file
+        // Stop tracking completely
         isTracking = false;
-        console.log(`Stopped tracking on previous file ${prevFileId}`);
+        trackingStartTime = 0;
         
-        // Tell UI to stop showing timer
+        // Explicitly tell UI to reset the timer display
         figma.ui.postMessage({
           type: 'tracking-status',
-          isTracking: false
+          isTracking: false,
+          fileName: currentFileName || '',
+          pageName: currentPageName || '',
+          resetTimer: true // Explicit flag to reset UI timer
         });
         
-        // Start tracking on the new file
+        console.log(`Stopped tracking on previous file ${prevFileId}`);
+        
+        // Wait a moment before starting tracking on the new file
         setTimeout(() => {
+          // Update file info before starting new tracking
+          activeFileId = newFileId;
+          currentFileName = fileName;
+          activePageId = figma.currentPage.id;
+          currentPageName = figma.currentPage.name;
+          
+          // Start tracking on the new file
           startTracking();
-        }, 100);
+        }, 500); // Slightly longer delay to ensure UI reset happens first
+      } else {
+        // Not tracking, just update file info
+        activeFileId = newFileId;
+        currentFileName = fileName;
+        activePageId = figma.currentPage.id;
+        currentPageName = figma.currentPage.name;
       }
-      
-      // Update the active file ID
-      activeFileId = newFileId;
-      currentFileName = fileName;
-      
-      // Update the active page
-      activePageId = figma.currentPage.id;
-      currentPageName = figma.currentPage.name;
       
       // Find or create file data
       let fileData = files.find(f => f.id === newFileId);
@@ -235,8 +245,8 @@ function handleFileChange() {
         type: 'file-changed',
         fileId: newFileId,
         fileName: fileName,
-        isTracking: isTracking,
-        startTime: isTracking ? trackingStartTime : 0
+        isTracking: false, // Always set to false during the transition
+        fileChanged: true // Explicit flag that file has changed
       });
       
       // Update the file list in UI
@@ -370,7 +380,8 @@ function stopTracking(createEntry = true) {
     type: 'tracking-status',
     isTracking: false,
     fileName: currentFileName || '',
-    pageName: currentPageName || ''
+    pageName: currentPageName || '',
+    resetTimer: true // Explicitly tell UI to reset the timer
   });
   
   console.log(`Stopped tracking on ${currentFileName || 'unknown file'}`);
