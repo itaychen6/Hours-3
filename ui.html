@@ -1,503 +1,866 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <style>
-      body {
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        margin: 0;
-        padding: 0;
-        overflow-x: hidden;
-        background-color: #fff;
-        color: #333;
+<head>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 16px;
+      font-size: 12px;
+      color: #333;
+    }
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    h2 {
+      margin: 0 0 8px 0;
+      font-size: 16px;
+      font-weight: 600;
+    }
+    .row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    input, select {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      flex-grow: 1;
+      font-size: 12px;
+    }
+    button {
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 4px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #f5f5f5;
+    }
+    button.primary {
+      background: #18a0fb;
+      color: white;
+      border-color: #18a0fb;
+    }
+    button.primary:hover {
+      background: #0078d4;
+    }
+    button.danger {
+      background: #f14a4a;
+      color: white;
+      border-color: #f14a4a;
+    }
+    button.danger:hover {
+      background: #d13838;
+    }
+    .timer {
+      font-size: 20px;
+      font-weight: 600;
+      text-align: center;
+      margin: 10px 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+    .timer-text {
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .timer-dot {
+      width: 12px;
+      height: 12px;
+      background-color: #4caf50;
+      border-radius: 50%;
+      animation: blink 1.5s infinite;
+    }
+    @keyframes blink {
+      0% { opacity: 1; }
+      50% { opacity: 0.3; }
+      100% { opacity: 1; }
+    }
+    .status {
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .status-active {
+      color: #18a0fb;
+      font-weight: 500;
+    }
+    .status-error {
+      color: #f14a4a;
+      font-weight: 500;
+    }
+    .recent-entries {
+      margin-top: 16px;
+      border-top: 1px solid #eee;
+      padding-top: 8px;
+    }
+    .entry {
+      border-bottom: 1px solid #eee;
+      padding: 8px 0;
+      display: flex;
+      justify-content: space-between;
+    }
+    .error-message {
+      color: #f14a4a;
+      margin: 10px 0;
+      padding: 8px;
+      border: 1px solid #f14a4a;
+      border-radius: 4px;
+      background-color: rgba(241, 74, 74, 0.1);
+      font-size: 12px;
+      display: none;
+    }
+    .file-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .file-name {
+      font-weight: 500;
+    }
+    .file-time {
+      color: #666;
+    }
+    .page-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0 4px 16px;
+      font-size: 11px;
+      color: #666;
+    }
+    .page-row.active {
+      background-color: rgba(24, 160, 251, 0.05);
+      border-radius: 3px;
+      padding-left: 8px;
+      padding-right: 4px;
+    }
+    .timer-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #4caf50;
+      margin-left: 5px;
+      position: relative;
+    }
+    .timer-indicator::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background-color: rgba(76, 175, 80, 0.4);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        opacity: 1;
       }
-      
-      .container {
-        padding: 15px;
-      }
-      
-      h1 {
-        font-size: 18px;
-        margin-bottom: 15px;
-        color: #333;
-      }
-      
-      h2 {
-        font-size: 16px;
-        margin-bottom: 10px;
-        color: #333;
-      }
-      
-      button {
-        background-color: #18A0FB;
-        color: white;
-        border: none;
-        border-radius: 4px;
-        padding: 8px 16px;
-        font-size: 14px;
-        cursor: pointer;
-        margin-right: 10px;
-        margin-bottom: 10px;
-      }
-      
-      button:hover {
-        background-color: #0D8DE3;
-      }
-      
-      button.secondary {
-        background-color: #F5F5F5;
-        color: #333;
-        border: 1px solid #E5E5E5;
-      }
-      
-      button.secondary:hover {
-        background-color: #E5E5E5;
-      }
-      
-      .file-item {
-        padding: 10px;
-        margin-bottom: 5px;
-        border-radius: 4px;
-        background-color: #F5F5F5;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-      
-      .file-name {
-        font-weight: bold;
-      }
-      
-      .file-time {
-        color: #666;
-      }
-      
-      .active-file {
-        background-color: #E3F2FD;
-        border-left: 4px solid #18A0FB;
-      }
-      
-      .timer-container {
-        text-align: center;
-        margin: 15px 0;
-        padding: 15px;
-        background-color: #F5F5F5;
-        border-radius: 4px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      }
-      
-      .timer-display {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 10px;
-      }
-      
-      .timer-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        background-color: #4CAF50;
-        margin-right: 10px;
+      100% {
+        transform: scale(2.5);
         opacity: 0;
       }
-      
-      .timer-dot.active {
-        animation: blink 1s infinite;
-      }
-      
-      @keyframes blink {
-        0% { opacity: 0.3; }
-        50% { opacity: 1; }
-        100% { opacity: 0.3; }
-      }
-      
-      .timer-text {
-        font-size: 24px;
-        font-weight: bold;
-        color: #333;
-      }
-      
-      .file-info {
-        font-size: 14px;
-        color: #666;
-      }
-      
-      .action-buttons {
-        margin-top: 15px;
-      }
-      
-      .page-list {
-        margin-left: 15px;
-      }
-      
-      .page-item {
-        padding: 5px 10px;
-        margin-bottom: 3px;
-        background-color: #FAFAFA;
-        border-radius: 4px;
-        display: flex;
-        justify-content: space-between;
-      }
-      
-      .recent-entries {
-        margin-top: 20px;
-      }
-      
-      .entry-item {
-        padding: 10px;
-        margin-bottom: 5px;
-        border-radius: 4px;
-        background-color: #FAFAFA;
-        border-left: 3px solid #18A0FB;
-      }
-      
-      .entry-file {
-        font-weight: bold;
-        margin-bottom: 5px;
-      }
-      
-      .entry-time {
-        display: flex;
-        justify-content: space-between;
-        color: #666;
-        font-size: 14px;
-      }
-      
-      .hidden {
-        display: none;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1>Figma Time Tracking</h1>
-      
-      <div class="timer-container">
-        <div class="timer-display">
-          <div class="timer-dot" id="timer-dot"></div>
-          <div class="timer-text" id="timer">00:00:00</div>
+    }
+    .daily-summary {
+      margin-top: 16px;
+      border-top: 1px solid #eee;
+      padding-top: 8px;
+    }
+    .summary-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .files-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .file-card {
+      border: 1px solid #eee;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 8px;
+      background-color: #fafafa;
+      transition: all 0.2s ease;
+    }
+    .file-card.active {
+      border-color: #18a0fb;
+      background-color: #f0f9ff;
+      box-shadow: 0 2px 4px rgba(24, 160, 251, 0.1);
+    }
+    .file-card.tracking {
+      border-color: #4caf50;
+      box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
+    }
+    .file-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #eee;
+    }
+    .file-name {
+      font-weight: 500;
+      font-size: 13px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .active-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: #18a0fb;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .file-time {
+      font-weight: 600;
+      color: #18a0fb;
+    }
+    .pages-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-left: 8px;
+    }
+    .total-time {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #eee;
+      text-align: right;
+      font-weight: 600;
+      color: #333;
+    }
+    .inactive-notice {
+      margin-top: 8px;
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+    }
+    .current-file {
+      background-color: #f5f9ff;
+      border-radius: 4px;
+      padding: 8px;
+      margin: 8px 0;
+    }
+    .current-file .file-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .current-file .label {
+      font-weight: 500;
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    .current-file .value {
+      font-weight: 500;
+    }
+    .page-row.tracking {
+      background-color: rgba(76, 175, 80, 0.05);
+    }
+    .time-entry {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .time-entry-file {
+      font-weight: 500;
+    }
+    .time-entry-details {
+      color: #666;
+      font-size: 11px;
+    }
+    .time-entry-duration {
+      font-weight: 500;
+      color: #18a0fb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Figma Time Tracking</h2>
+    
+    <div class="error-message" id="error-container">
+      An error occurred. Time data will not be saved remotely.
+    </div>
+    
+    <div class="current-file" id="current-file">
+      <div class="file-info">
+        <div>
+          <span class="label">File:</span>
+          <span class="value" id="current-file-name">Loading...</span>
         </div>
-        <div class="file-info" id="file-info">No file selected</div>
-        <div class="action-buttons">
-          <button id="start-btn">Start Tracking</button>
-          <button id="stop-btn" class="secondary">Stop Tracking</button>
+        <div>
+          <span class="label">Page:</span>
+          <span class="value" id="current-page-name">Loading...</span>
         </div>
-      </div>
-      
-      <div class="recent-entries">
-        <h2>Recent Entries</h2>
-        <div id="entries-list">
-          <div class="entry-item hidden" id="entry-template">
-            <div class="entry-file"></div>
-            <div class="entry-time">
-              <span class="entry-duration"></span>
-              <span class="entry-date"></span>
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      <h2>Tracked Files</h2>
-      <div id="files-list">
-        <!-- Files will be added here dynamically -->
       </div>
     </div>
     
-    <script>
-      // Track if we're currently tracking time
-      let isTracking = false;
-      let trackingStartTime = 0;
-      let activeFileId = '';
-      let activeFileName = '';
-      let activePageName = '';
-      let userId = '';
-      let currentEntries = [];
-      let updateTimerInterval = null;
+    <div class="status">
+      <span id="status-text">Not tracking</span>
+    </div>
+    
+    <div class="timer" id="timer-container">
+      <div class="timer-dot" id="timer-dot" style="display: none;"></div>
+      <div class="timer-text" id="timer-text">00:00:00</div>
+    </div>
+    
+    <div class="inactive-notice" id="inactive-notice" style="display: none;">
+      Tracking paused due to inactivity (5 minutes)
+    </div>
+    
+    <div class="row">
+      <button id="start-btn" class="primary">Start Tracking</button>
+      <button id="stop-btn" class="danger" style="display: none;">Stop Tracking</button>
+    </div>
+    
+    <div class="daily-summary">
+      <div class="summary-title">Your Tracked Files</div>
+      <div id="files-container" class="files-list">
+        <!-- Files and their pages will be added here -->
+      </div>
+    </div>
+    
+    <div class="recent-entries">
+      <h2>Recent Time Entries</h2>
+      <div id="entries-container">
+        <!-- Time entries will be added here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Load Firebase dynamically to avoid CORS issues -->
+  <script>
+    let firebaseConfig = null;
+    let userId = null;
+    let currentTimer = null;
+    let startTime = null;
+    let allFiles = []; // Store all files
+    let activeFileId = null; // Currently active file ID
+    let firebaseDb = null; // Firebase database reference
+    let recentEntries = []; // Recent time entries
+    let isTracking = false;
+    let updateTimerInterval = null;
+    let activeFileName = '';
+    let activePageName = '';
+    let trackingStartTime = 0;
+    
+    // Update file info display
+    function updateFileInfo(fileName, pageName) {
+      console.log('Updating file info:', { fileName, pageName });
       
-      // Initialize Firebase (will be populated from plugin)
-      let firebaseConfig = {};
-      let firebaseInitialized = false;
+      // Update file name display
+      const fileNameElement = document.getElementById('current-file-name');
+      if (fileNameElement) {
+        fileNameElement.textContent = fileName || 'Not selected';
+      }
       
-      // Format time in HH:MM:SS
-      function formatTime(ms) {
-        const seconds = Math.floor(ms / 1000);
+      // Update page name display
+      const pageNameElement = document.getElementById('current-page-name');
+      if (pageNameElement) {
+        pageNameElement.textContent = pageName || 'Not selected';
+      }
+    }
+    
+    // Format time in HH:MM:SS
+    function formatTime(seconds) {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    
+    // Format time for display (converts to hours, minutes, seconds)
+    function formatTimeDisplay(seconds) {
+      if (seconds < 60) {
+        return `${seconds}s`;
+      } else if (seconds < 3600) {
         const minutes = Math.floor(seconds / 60);
-        const hours = Math.floor(minutes / 60);
-        
-        const formattedHours = String(hours).padStart(2, '0');
-        const formattedMinutes = String(minutes % 60).padStart(2, '0');
-        const formattedSeconds = String(seconds % 60).padStart(2, '0');
-        
-        return `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+        return `${minutes}m`;
+      } else {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return `${hours}h ${minutes}m`;
+      }
+    }
+    
+    // Format time for display (more detailed for time entries)
+    function formatDisplayTime(ms) {
+      const seconds = Math.floor(ms / 1000);
+      if (seconds < 60) {
+        return `${seconds} sec`;
+      } else if (seconds < 3600) {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSecs = seconds % 60;
+        return `${minutes}m ${remainingSecs}s`;
+      } else {
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+        return `${hours}h ${minutes}m`;
+      }
+    }
+    
+    // Update timer display based on tracking status
+    function updateTimerDisplay(tracking, startTime) {
+      console.log('Updating timer display:', { tracking, startTime });
+      
+      isTracking = tracking;
+      
+      // Clear any existing timer interval
+      if (updateTimerInterval) {
+        clearInterval(updateTimerInterval);
+        updateTimerInterval = null;
       }
       
-      // Update the timer display
-      function updateTimer() {
-        if (!isTracking) return;
+      if (tracking && startTime) {
+        // Store tracking start time
+        trackingStartTime = startTime;
         
-        const now = Date.now();
-        const elapsed = now - trackingStartTime;
+        // Start updating the timer every second
+        updateTimerInterval = setInterval(() => {
+          const now = Date.now();
+          const elapsed = now - trackingStartTime;
+          const seconds = Math.floor(elapsed / 1000);
+          document.getElementById('timer-text').textContent = formatTime(seconds);
+        }, 1000);
         
-        document.getElementById('timer').textContent = formatTime(elapsed);
+        // Update initial time
+        const initialElapsed = Date.now() - startTime;
+        const initialSeconds = Math.floor(initialElapsed / 1000);
+        document.getElementById('timer-text').textContent = formatTime(initialSeconds);
+        
+        // Show the timer dot as active
+        document.getElementById('timer-dot').style.display = 'block';
+        
+        // Update status text
+        document.getElementById('status-text').textContent = 'Currently tracking';
+        document.getElementById('status-text').className = 'status-active';
+        
+        // Update button visibility
+        document.getElementById('start-btn').style.display = 'none';
+        document.getElementById('stop-btn').style.display = 'inline-block';
+      } else {
+        // Reset the timer display
+        document.getElementById('timer-text').textContent = '00:00:00';
+        
+        // Hide the timer dot
+        document.getElementById('timer-dot').style.display = 'none';
+        
+        // Update status text
+        document.getElementById('status-text').textContent = 'Not tracking';
+        document.getElementById('status-text').className = '';
+        
+        // Update button visibility
+        document.getElementById('start-btn').style.display = 'inline-block';
+        document.getElementById('stop-btn').style.display = 'none';
+      }
+    }
+    
+    // Update the file list display
+    function updateFileList(files, currentActiveFileId) {
+      const filesContainer = document.getElementById('files-container');
+      filesContainer.innerHTML = '';
+      
+      // Store all files for future reference
+      allFiles = files || [];
+      
+      // Update the active file ID
+      if (currentActiveFileId) {
+        activeFileId = currentActiveFileId;
       }
       
-      // Update timer display based on tracking status
-      function updateTimerDisplay(tracking, startTime) {
-        console.log('Updating timer display:', { tracking, startTime });
-        
-        isTracking = tracking;
-        
-        // Clear any existing timer interval
-        if (updateTimerInterval) {
-          clearInterval(updateTimerInterval);
-          updateTimerInterval = null;
-        }
-        
-        if (tracking && startTime) {
-          trackingStartTime = startTime;
-          
-          // Start updating the timer every second
-          updateTimerInterval = setInterval(updateTimer, 1000);
-          
-          // Show the timer dot as active
-          document.getElementById('timer-dot').classList.add('active');
-          
-          // Update initial time
-          updateTimer();
-          
-          // Update button states
-          document.getElementById('start-btn').disabled = true;
-          document.getElementById('stop-btn').disabled = false;
-        } else {
-          // Stop the timer updates
-          if (updateTimerInterval) {
-            clearInterval(updateTimerInterval);
-            updateTimerInterval = null;
-          }
-          
-          // Reset the timer display
-          document.getElementById('timer').textContent = '00:00:00';
-          
-          // Hide the timer dot
-          document.getElementById('timer-dot').classList.remove('active');
-          
-          // Update button states
-          document.getElementById('start-btn').disabled = false;
-          document.getElementById('stop-btn').disabled = false;
-        }
-      }
-      
-      // Update the file info display
-      function updateFileInfo(fileName, pageName) {
-        const fileInfoElement = document.getElementById('file-info');
-        
-        if (fileName) {
-          if (pageName) {
-            fileInfoElement.textContent = `${fileName} › ${pageName}`;
-          } else {
-            fileInfoElement.textContent = fileName;
-          }
-        } else {
-          fileInfoElement.textContent = 'No file selected';
-        }
-      }
-      
-      // Add a new time entry to the UI
-      function addTimeEntry(entry) {
-        // Add to in-memory entries
-        currentEntries.unshift(entry);
-        
-        // Only keep the 10 most recent entries
-        if (currentEntries.length > 10) {
-          currentEntries.pop();
-        }
-        
-        // Update entries display
-        updateEntriesList();
-        
-        // Save to Firebase if available
-        if (firebaseInitialized) {
-          saveEntryToFirebase(entry);
-        }
-      }
-      
-      // Update the entries list with current entries
-      function updateEntriesList() {
-        const entriesList = document.getElementById('entries-list');
-        const template = document.getElementById('entry-template');
-        
-        // Remove all entries except the template
-        Array.from(entriesList.children).forEach(child => {
-          if (child.id !== 'entry-template') {
-            entriesList.removeChild(child);
-          }
-        });
-        
-        // Add entries
-        currentEntries.forEach(entry => {
-          const entryElement = template.cloneNode(true);
-          entryElement.id = '';
-          entryElement.classList.remove('hidden');
-          
-          // Set entry details
-          entryElement.querySelector('.entry-file').textContent = entry.fileName;
-          entryElement.querySelector('.entry-duration').textContent = formatTime(entry.duration);
-          
-          // Format date and time from timestamp
-          const date = new Date(entry.endTime);
-          const formattedDate = date.toLocaleDateString();
-          const formattedTime = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-          entryElement.querySelector('.entry-date').textContent = `${formattedDate} ${formattedTime}`;
-          
-          entriesList.appendChild(entryElement);
-        });
-      }
-      
-      // Save entry to Firebase
-      function saveEntryToFirebase(entry) {
-        // Firebase implementation
-        console.log('Would save entry to Firebase:', entry);
-      }
-      
-      // Initialize Firebase
-      function initializeFirebase(config, uid) {
-        // Firebase implementation
-        console.log('Initializing Firebase with config:', config);
-        userId = uid;
-        firebaseInitialized = true;
-      }
-      
-      // Update the files list with tracked files
-      function updateFilesList(files, activeId) {
-        const filesListElement = document.getElementById('files-list');
-        
-        // Clear files list
-        filesListElement.innerHTML = '';
-        
-        // Add files
-        files.forEach(file => {
-          const fileElement = document.createElement('div');
-          fileElement.className = 'file-item';
-          
-          if (file.id === activeId) {
-            fileElement.classList.add('active-file');
-          }
-          
-          const nameElement = document.createElement('div');
-          nameElement.className = 'file-name';
-          nameElement.textContent = file.name;
-          
-          const timeElement = document.createElement('div');
-          timeElement.className = 'file-time';
-          timeElement.textContent = formatTime(file.totalTime);
-          
-          fileElement.appendChild(nameElement);
-          fileElement.appendChild(timeElement);
-          
-          filesListElement.appendChild(fileElement);
-        });
-      }
-      
-      // Initialize the UI
-      function initializeUI() {
-        // Set up event listeners
-        document.getElementById('start-btn').addEventListener('click', () => {
-          parent.postMessage({ pluginMessage: { type: 'resume-tracking' } }, '*');
-        });
-        
-        document.getElementById('stop-btn').addEventListener('click', () => {
-          parent.postMessage({ pluginMessage: { type: 'stop-tracking' } }, '*');
-        });
-        
-        // Request tracking status
-        parent.postMessage({ pluginMessage: { type: 'check-tracking-status' } }, '*');
-      }
-      
-      // Handle messages from the plugin
-      window.onmessage = (event) => {
-        const message = event.data.pluginMessage;
-        
-        if (!message) return;
-        
-        console.log('Received message:', message.type);
-        
-        switch (message.type) {
-          case 'firebase-config':
-            initializeFirebase(message.config, message.userId);
-            break;
-            
-          case 'tracking-status':
-            isTracking = message.isTracking;
-            
-            // If we're getting a resetTimer flag, ensure we completely reset the timer
-            if (message.resetTimer === true) {
-              console.log('Explicitly resetting timer');
-              if (updateTimerInterval) {
-                clearInterval(updateTimerInterval);
-                updateTimerInterval = null;
-              }
-              document.getElementById('timer').textContent = '00:00:00';
-              document.getElementById('timer-dot').classList.remove('active');
-            }
-            
-            updateTimerDisplay(message.isTracking, message.startTime);
-            
-            // Update active file and page
-            activeFileName = message.fileName || '';
-            activePageName = message.pageName || '';
-            updateFileInfo(activeFileName, activePageName);
-            break;
-            
-          case 'file-changed':
-            // When file changes, always ensure timer is reset first
-            if (message.fileChanged === true) {
-              console.log('File changed, resetting timer display');
-              if (updateTimerInterval) {
-                clearInterval(updateTimerInterval);
-                updateTimerInterval = null;
-              }
-              document.getElementById('timer').textContent = '00:00:00';
-              document.getElementById('timer-dot').classList.remove('active');
-            }
-            
-            activeFileId = message.fileId;
-            activeFileName = message.fileName;
-            updateFileInfo(activeFileName, activePageName);
-            break;
-            
-          case 'files-updated':
-            updateFilesList(message.files, message.activeFileId);
-            break;
-            
-          case 'save-time-entry':
-            addTimeEntry(message.timeEntry);
-            break;
-        }
-      };
-      
-      // Initialize on load
-      window.onload = initializeUI;
-      
-      // Handle visibility changes
-      document.addEventListener('visibilitychange', function() {
-        const isVisible = !document.hidden;
-        console.log('Visibility changed:', isVisible ? 'visible' : 'hidden');
-        
-        // Send visibility state to the plugin
-        parent.postMessage({
-          pluginMessage: {
-            type: 'ui-visibility-changed',
-            isVisible: isVisible
-          }
-        }, '*');
-        
-        // If hidden, update UI to reflect that tracking might be paused
-        if (!isVisible && isTracking) {
-          updateTimerDisplay(false, null);
-        }
+      console.log('Updating file list:', { 
+        filesCount: allFiles.length, 
+        activeFileId: activeFileId 
       });
-    </script>
-  </body>
+      
+      if (!allFiles || allFiles.length === 0) {
+        filesContainer.innerHTML = '<div>No files tracked yet</div>';
+        return;
+      }
+      
+      // Sort files with active file first, then by last active time (most recent first)
+      const sortedFiles = [...allFiles].sort((a, b) => {
+        // Active file always first
+        if (a.id === activeFileId) return -1;
+        if (b.id === activeFileId) return 1;
+        
+        // Then by totalTime (most tracked time first)
+        return b.totalTime - a.totalTime;
+      });
+      
+      // Create file cards
+      sortedFiles.forEach(file => {
+        const isCurrentlyActive = file.id === activeFileId;
+        
+        const fileCard = document.createElement('div');
+        fileCard.className = `file-card ${isCurrentlyActive ? 'active' : ''}`;
+        
+        const fileHeader = document.createElement('div');
+        fileHeader.className = 'file-header';
+        
+        const fileName = document.createElement('div');
+        fileName.className = 'file-name';
+        
+        // Add indicator for active file
+        if (isCurrentlyActive) {
+          const activeIndicator = document.createElement('span');
+          activeIndicator.className = 'active-indicator';
+          fileName.appendChild(activeIndicator);
+        }
+        
+        const fileNameText = document.createElement('span');
+        fileNameText.textContent = file.name;
+        fileName.appendChild(fileNameText);
+        
+        const fileTime = document.createElement('div');
+        fileTime.className = 'file-time';
+        fileTime.textContent = formatDisplayTime(file.totalTime);
+        
+        fileHeader.appendChild(fileName);
+        fileHeader.appendChild(fileTime);
+        fileCard.appendChild(fileHeader);
+        
+        // Create page list if it has pages
+        if (file.pages && Object.keys(file.pages).length > 0) {
+          const pagesList = document.createElement('div');
+          pagesList.className = 'pages-list';
+          
+          // Convert pages object to array and sort by totalTime
+          const pagesArray = Object.values(file.pages);
+          
+          // Sort pages by tracked time (descending)
+          pagesArray.sort((a, b) => b.totalTime - a.totalTime);
+          
+          let hasPages = false;
+          pagesArray.forEach(page => {
+            // Skip pages with no tracked time
+            if (page.totalTime === 0) return;
+            hasPages = true;
+            
+            const pageRow = document.createElement('div');
+            pageRow.className = 'page-row';
+            
+            const pageName = document.createElement('div');
+            pageName.className = 'page-name';
+            pageName.textContent = page.name;
+            
+            const pageTime = document.createElement('div');
+            pageTime.className = 'page-time';
+            pageTime.textContent = formatDisplayTime(page.totalTime);
+            
+            pageRow.appendChild(pageName);
+            pageRow.appendChild(pageTime);
+            pagesList.appendChild(pageRow);
+          });
+          
+          if (hasPages) {
+            fileCard.appendChild(pagesList);
+          }
+        }
+        
+        filesContainer.appendChild(fileCard);
+      });
+    }
+    
+    // Load Firebase script dynamically
+    function loadFirebaseScript() {
+      return new Promise((resolve, reject) => {
+        // Check if Firebase is already loaded
+        if (window.firebase) {
+          resolve();
+          return;
+        }
+        
+        // Load Firebase App
+        const appScript = document.createElement('script');
+        appScript.src = 'https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js';
+        appScript.onload = () => {
+          // Load Firebase Database
+          const dbScript = document.createElement('script');
+          dbScript.src = 'https://www.gstatic.com/firebasejs/9.6.1/firebase-database-compat.js';
+          dbScript.onload = resolve;
+          dbScript.onerror = reject;
+          document.head.appendChild(dbScript);
+        };
+        appScript.onerror = reject;
+        document.head.appendChild(appScript);
+      });
+    }
+    
+    // Initialize Firebase
+    async function initializeFirebase(config, uid) {
+      try {
+        await loadFirebaseScript();
+        if (!window.firebase.apps.length) {
+          window.firebase.initializeApp(config);
+        }
+        
+        // Get database reference
+        firebaseDb = window.firebase.database();
+        console.log('Firebase connected successfully');
+        
+        // Store the user ID
+        userId = uid;
+        
+        // Load recent entries from Firebase
+        loadRecentEntriesFromFirebase(uid);
+        
+        return true;
+      } catch (error) {
+        console.error('Error initializing Firebase:', error);
+        showErrorMessage('Failed to connect to Firebase. Data will be stored locally only.');
+        return false;
+      }
+    }
+    
+    // Show error message
+    function showErrorMessage(message) {
+      const errorContainer = document.getElementById('error-container');
+      errorContainer.textContent = message;
+      errorContainer.style.display = 'block';
+      
+      // Hide after 5 seconds
+      setTimeout(() => {
+        errorContainer.style.display = 'none';
+      }, 5000);
+    }
+    
+    // Handle messages from the plugin
+    window.onmessage = (event) => {
+      const message = event.data.pluginMessage;
+      
+      if (!message) return;
+      
+      console.log('Received message:', message.type);
+      
+      switch (message.type) {
+        case 'firebase-config':
+          initializeFirebase(message.config, message.userId);
+          break;
+          
+        case 'tracking-status':
+          isTracking = message.isTracking;
+          
+          // If we're getting a resetTimer flag, ensure we completely reset the timer
+          if (message.resetTimer === true) {
+            console.log('Explicitly resetting timer');
+            if (updateTimerInterval) {
+              clearInterval(updateTimerInterval);
+              updateTimerInterval = null;
+            }
+            document.getElementById('timer-text').textContent = '00:00:00';
+            document.getElementById('timer-dot').style.display = 'none';
+          }
+          
+          updateTimerDisplay(message.isTracking, message.startTime);
+          
+          // Update active file and page
+          activeFileName = message.fileName || '';
+          activePageName = message.pageName || '';
+          updateFileInfo(activeFileName, activePageName);
+          break;
+          
+        case 'file-changed':
+          // When file changes, always ensure timer is reset first
+          if (message.fileChanged === true) {
+            console.log('File changed, resetting timer display');
+            if (updateTimerInterval) {
+              clearInterval(updateTimerInterval);
+              updateTimerInterval = null;
+            }
+            document.getElementById('timer-text').textContent = '00:00:00';
+            document.getElementById('timer-dot').style.display = 'none';
+          }
+          
+          activeFileId = message.fileId;
+          activeFileName = message.fileName;
+          updateFileInfo(activeFileName, activePageName);
+          break;
+          
+        case 'files-updated':
+          updateFileList(message.files, message.activeFileId);
+          break;
+          
+        case 'save-time-entry':
+          addTimeEntry(message.timeEntry);
+          break;
+      }
+    };
+    
+    // Save time entry to Firebase
+    function saveTimeEntryToFirebase(timeEntry) {
+      if (!firebaseDb || !userId) {
+        console.error('Firebase not initialized or user ID not available');
+        return;
+      }
+      
+      try {
+        // Reference to user's time entries collection
+        const entryRef = firebaseDb.ref(`users/${userId}/timeEntries/${timeEntry.id}`);
+        
+        // Set the time entry data
+        entryRef.set(timeEntry, (error) => {
+          if (error) {
+            console.error('Error saving time entry to Firebase:', error);
+          } else {
+            console.log(`Time entry saved successfully: ${timeEntry.id}`);
+          }
+        });
+      } catch (error) {
+        console.error('Error accessing Firebase:', error);
+      }
+    }
+    
+    // Add a time entry to the UI
+    function addTimeEntry(timeEntry) {
+      // Add to recent entries array (limit to 10)
+      recentEntries.unshift(timeEntry);
+      if (recentEntries.length > 10) {
+        recentEntries.pop();
+      }
+      
+      // Update the UI
+      updateRecentEntries();
+      
+      // Save to Firebase if available
+      if (firebaseDb && userId) {
+        saveTimeEntryToFirebase(timeEntry);
+      }
+    }
+    
+    // Update the recent entries display
+    function updateRecentEntries() {
+      const entriesContainer = document.getElementById('entries-container');
+      entriesContainer.innerHTML = '';
+      
+      if (recentEntries.length === 0) {
+        entriesContainer.innerHTML = '<div class="empty-state">No recent entries</div>';
+        return;
+      }
+      
+      recentEntries.forEach(entry => {
+        const dateObj = new Date(entry.endTime);
+        const formattedDate = dateObj.toLocaleDateString();
+        const formattedTime = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const duration = formatDisplayTime(entry.duration);
+        
+        const entryElement = document.createElement('div');
+        entryElement.className = 'time-entry';
+        entryElement.innerHTML = `
+          <div class="time-entry-file">${entry.fileName}</div>
+          <div class="time-entry-details">
+            <div class="time-entry-page">${entry.pageName}</div>
+            <div class="time-entry-time">${formattedDate} at ${formattedTime}</div>
+          </div>
+          <div class="time-entry-duration">${duration}</div>
+        `;
+        
+        entriesContainer.appendChild(entryElement);
+      });
+    }
+
+    // Load recent entries from Firebase
+    function loadRecentEntriesFromFirebase(uid) {
+      if (!firebaseDb || !uid) {
+        console.log('Firebase or user ID not available');
+        return;
+      }
+      
+      try {
+        console.log(`Loading recent entries for user ${uid}`);
+        const entriesRef = firebaseDb.ref(`users/${uid}/timeEntries`);
+        
+        entriesRef.orderByChild('startTime')
+          .limitToLast(10)
+          .once('value')
+          .then(snapshot => {
+            const data = snapshot.val();
+            if (!data) {
+              console.log('No time entries found in Firebase');
+              return;
+            }
+            
+            // Convert object to array and sort by start time (descending)
+            recentEntries = Object.values(data)
+              .sort((a, b) => b.startTime - a.startTime);
+            
+            // Update the UI
+            updateRecentEntries();
+            
+            console.log(`Loaded ${recentEntries.length} recent time entries`);
+          })
+          .catch(error => {
+            console.error('Error loading time entries from Firebase:', error);
+            showErrorMessage('Failed to load recent entries from Firebase');
+          });
+      } catch (error) {
+        console.error('Error accessing Firebase for time entries:', error);
+        showErrorMessage('Failed to connect to Firebase database');
+      }
+    }
+
+    // Handle visibility changes
+    document.addEventListener('visibilitychange', function() {
+      const isVisible = !document.hidden;
+      console.log('Visibility changed:', isVisible ? 'visible' : 'hidden');
+      
+      // Send visibility state to the plugin
+      parent.postMessage({
+        pluginMessage: {
+          type: 'ui-visibility-changed',
+          isVisible: isVisible
+        }
+      }, '*');
+      
+      // If hidden, update UI to reflect that tracking might be paused
+      if (!isVisible && isTracking) {
+        updateTimerDisplay(false, null);
+      }
+    });
+    
+    // Set up event listeners
+    document.getElementById('start-btn').addEventListener('click', () => {
+      // Tell the plugin to start tracking
+      parent.postMessage({ pluginMessage: { type: 'resume-tracking' } }, '*');
+    });
+    
+    document.getElementById('stop-btn').addEventListener('click', () => {
+      // Tell the plugin to stop tracking
+      parent.postMessage({ pluginMessage: { type: 'stop-tracking' } }, '*');
+    });
+    
+    // Check tracking status on load
+    window.onload = () => {
+      // Hide the inactive notice initially
+      document.getElementById('inactive-notice').style.display = 'none';
+      
+      // Check if we're currently tracking
+      parent.postMessage({ pluginMessage: { type: 'check-tracking-status' } }, '*');
+    };
+  </script>
+</body>
 </html>
