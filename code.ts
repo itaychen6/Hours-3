@@ -1,3 +1,8 @@
+// This file holds the main code for plugins. Code in this file has access to
+// the *figma document* via the figma global object.
+// You can access browser APIs in the <script> tag inside "ui.html" which has a
+// full browser environment (See https://www.figma.com/plugin-docs/how-plugins-run).
+
 // Initialize Firebase
 const firebaseConfig = {
   apiKey: "AIzaSyDqZ94q1Y5p0o3RBB9WVwTcEpffpE9TrOY",
@@ -25,25 +30,28 @@ let files: Array<FileData> = [];
 let activityInterval: number;
 let fileCheckInterval: number;
 let userId: string | null = null;
+let activeFileId: string | null = null;
+let currentFileName: string | null = null;
+let currentPageName: string | null = null;
+let activePageId: string | null = null;
 
 // Define types
 interface PageData {
-  pageId: string;
-  pageName: string;
-  isActive: boolean;
-  trackedTime: number;
+  id: string;
+  name: string;
+  totalTime: number;
 }
 
 interface FileData {
-  fileId: string;
-  fileName: string;
-  isActive: boolean;
-  lastActive: number;
-  totalTrackedTime: number;
-  pages: Array<PageData>;
+  id: string;
+  name: string;
+  pages: { [key: string]: PageData };
+  totalTime: number;
 }
 
 interface TimeEntry {
+  id: string;
+  userId: string;
   fileId: string;
   fileName: string;
   pageId: string;
@@ -51,11 +59,19 @@ interface TimeEntry {
   startTime: number;
   endTime: number;
   duration: number;
+  date: string;
 }
 
-// Generate a unique user ID
-function generateUserId(): string {
-  return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+// Generate a unique user ID for this user (or use the existing one)
+async function generateUserId(): Promise<string> {
+  let userId = await figma.clientStorage.getAsync('userId') as string;
+  
+  if (!userId) {
+    userId = `user_${Math.random().toString(36).substring(2, 15)}`;
+    await figma.clientStorage.setAsync('userId', userId);
+  }
+  
+  return userId;
 }
 
 // Get the user ID, generating a new one if needed
@@ -64,77 +80,132 @@ async function getUserId(): Promise<string> {
   if (storedId) return storedId as string;
   
   // If no ID exists, generate a new one and save it
-  const newId = generateUserId();
-  figma.clientStorage.setAsync('userId', newId);
+  const newId = await generateUserId();
   return newId;
 }
 
 // Check if the current file has changed
 function checkFileChange() {
-  const currentFileId = figma.currentPage.parent.id;
+  const currentFileNode = figma.currentPage.parent;
+  if (!currentFileNode) return;
+
+  const currentFileId = currentFileNode.id;
   
   // If we have a different file than before, handle the change
-  if (currentFileId !== currentFile?.id) {
-    console.log(`File changed from ${currentFile?.id || 'none'} to ${currentFileId}`);
-    handleFileChange(currentFileId);
+  if (currentFileId !== activeFileId) {
+    console.log(`File changed from ${activeFileId || 'none'} to ${currentFileId}`);
+    handleFileChange();
   }
 }
 
 // Handle file change
-function handleFileChange(newFileId: string) {
-  if (!newFileId) return;
+function handleFileChange() {
+  const currentFileNode = figma.currentPage.parent;
+  if (!currentFileNode) return;
   
-  console.log('Handling file change:', {
-    newFileId,
-    previousFileId: currentFile?.id || null,
-    wasTracking: isTracking
-  });
+  const newFileId = currentFileNode.id;
+  let fileName = "Untitled";
   
-  // Save previous file ID
-  previousFileId = currentFile?.id || null;
-  
-  // Stop tracking the previous file if we were tracking
-  if (isTracking && previousFileId) {
-    console.log(`Stopping tracking for previous file ${previousFileId}`);
-    stopTracking(false);
+  // Try to safely access the name property
+  if ('name' in currentFileNode) {
+    fileName = (currentFileNode as any).name;
   }
   
-  // Update current file and page
-  updateFileAndPage();
+  // Store previous file ID before changing
+  const prevFileId = activeFileId;
   
-  // Always start tracking the new file
-  console.log(`Starting tracking for new file ${newFileId}`);
-  startTracking();
-  
-  // Notify the UI about the file change
-  figma.ui.postMessage({
-    type: 'file-changed',
-    fileId: currentFile?.id || null,
-    fileName: currentFile?.name || null
-  });
-  
-  // Update file list
-  savePluginData();
+  // If file changed
+  if (activeFileId !== newFileId) {
+    console.log(`File changed from ${activeFileId || 'none'} to ${newFileId}`);
+    
+    // If we were tracking the previous file, stop tracking
+    if (isTracking && prevFileId) {
+      console.log(`Stopping tracking for previous file ${prevFileId}`);
+      stopTracking();
+    }
+    
+    // Update the active file ID
+    activeFileId = newFileId;
+    currentFileName = fileName;
+    
+    // Update the active page
+    activePageId = figma.currentPage.id;
+    currentPageName = figma.currentPage.name;
+    
+    // Find or create file data
+    let fileData = files.find(f => f.id === newFileId);
+    if (!fileData) {
+      // Create new file data
+      fileData = {
+        id: newFileId,
+        name: fileName,
+        pages: {},
+        totalTime: 0
+      };
+      files.push(fileData);
+    }
+    
+    // Notify UI about file change
+    figma.ui.postMessage({
+      type: 'file-changed',
+      fileId: newFileId,
+      fileName: fileName,
+      isTracking: isTracking,
+      startTime: isTracking ? trackingStartTime : 0
+    });
+    
+    // Start tracking on the new file if we were tracking before
+    if (isTracking) {
+      // Reset tracking start time
+      trackingStartTime = Date.now();
+      lastActivityTime = trackingStartTime;
+      
+      // Send tracking status to UI
+      figma.ui.postMessage({
+        type: 'tracking-status',
+        isTracking: true,
+        startTime: trackingStartTime,
+        fileName: fileName,
+        pageName: currentPageName
+      });
+    }
+    
+    // Update the file list in UI
+    updateFilesList();
+    
+    // Save data
+    savePluginData();
+  }
 }
 
 // Update the current file and page
 function updateFileAndPage() {
   try {
     // Get current file information
-    const fileId = figma.currentPage.parent.id;
+    const fileNode = figma.currentPage.parent;
+    if (!fileNode) return;
+    
+    const fileId = fileNode.id;
     let fileName = "Untitled";
     
     // Try to safely access the name property
-    if (figma.currentPage.parent && 'name' in figma.currentPage.parent) {
-      fileName = (figma.currentPage.parent as any).name;
+    if ('name' in fileNode) {
+      fileName = (fileNode as any).name;
     }
     
     // Get current page information
     const pageId = figma.currentPage.id;
     const pageName = figma.currentPage.name;
     
+    // Update current file and page info
     currentFile = { id: fileId, name: fileName };
     currentPage = { id: pageId, name: pageName };
+    
+    // Also update the tracking variables
+    activeFileId = fileId;
+    currentFileName = fileName;
+    activePageId = pageId;
+    currentPageName = pageName;
     
     console.log(`Current file: ${fileName}, current page: ${pageName}`);
   } catch (error) {
@@ -144,72 +215,98 @@ function updateFileAndPage() {
 
 // Start tracking time
 function startTracking() {
-  if (!currentFile || !currentPage) {
-    updateFileAndPage();
-  }
+  // If already tracking, don't start again
+  if (isTracking) return;
   
-  if (!currentFile || !currentPage) {
-    console.error('Cannot start tracking: no current file or page');
-    return;
-  }
-  
-  console.log(`Starting tracking for ${currentFile.name} - ${currentPage.name}`);
-  
+  // Start tracking
   isTracking = true;
   trackingStartTime = Date.now();
-  lastActivityTime = Date.now();
-  
-  // Update file data for current file and page
-  updateFileData();
+  lastActivityTime = trackingStartTime;
   
   // Send tracking status to UI
-  updateTrackingStatus();
+  figma.ui.postMessage({
+    type: 'tracking-status',
+    isTracking: true,
+    startTime: trackingStartTime,
+    fileName: currentFileName || '',
+    pageName: currentPageName || ''
+  });
+  
+  console.log(`Started tracking on ${currentFileName || 'unknown file'} - ${currentPageName || 'unknown page'}`);
 }
 
 // Stop tracking time
-function stopTracking(updateUI = true) {
-  if (!isTracking || !trackingStartTime || !currentFile || !currentPage) {
-    isTracking = false;
-    trackingStartTime = null;
-    if (updateUI) {
-      updateTrackingStatus();
-    }
-    return;
-  }
+function stopTracking() {
+  if (!isTracking) return;
   
-  console.log(`Stopping tracking for ${currentFile.name}`);
+  const currentTime = Date.now();
+  const duration = currentTime - trackingStartTime;
   
-  const endTime = Date.now();
-  const duration = Math.floor((endTime - trackingStartTime) / 1000);
-  
-  if (duration > 0) {
+  // Only count if we've been tracking for at least 5 seconds
+  if (duration >= 5000) {
     // Create a time entry
     const timeEntry: TimeEntry = {
-      fileId: currentFile.id,
-      fileName: currentFile.name,
-      pageId: currentPage.id,
-      pageName: currentPage.name,
+      id: `entry_${Date.now()}`,
+      userId: userId,
+      fileId: activeFileId || '',
+      fileName: currentFileName || '',
+      pageId: activePageId || '',
+      pageName: currentPageName || '',
       startTime: trackingStartTime,
-      endTime: endTime,
-      duration: duration
+      endTime: currentTime,
+      duration: duration,
+      date: new Date().toISOString().split('T')[0]
     };
     
-    // Update file data
-    updateFileData(duration);
-    
-    // Send time entry to UI for saving
+    // Send the time entry to the UI for saving to Firebase
     figma.ui.postMessage({
       type: 'save-time-entry',
-      timeEntry
+      timeEntry: timeEntry
     });
+    
+    console.log(`Stopped tracking: ${formatTime(duration)} on ${currentFileName || 'unknown file'} - ${currentPageName || 'unknown page'}`);
+    
+    // Update file and page data with the tracked time
+    if (activeFileId) {
+      const fileData = files.find(f => f.id === activeFileId);
+      if (fileData) {
+        // Add to file total time
+        fileData.totalTime += duration;
+        
+        // Add to page total time if the page exists
+        if (activePageId && fileData.pages[activePageId]) {
+          fileData.pages[activePageId].totalTime += duration;
+        }
+        
+        // Update UI with file data
+        updateFilesList();
+      }
+    }
   }
   
+  // Reset tracking state
   isTracking = false;
-  trackingStartTime = null;
+  trackingStartTime = 0;
   
-  if (updateUI) {
-    updateTrackingStatus();
-  }
+  // Update UI with tracking status
+  figma.ui.postMessage({
+    type: 'tracking-status',
+    isTracking: false,
+    fileName: currentFileName || '',
+    pageName: currentPageName || ''
+  });
+  
+  // Save data
+  savePluginData();
+}
+
+// Update the file list in the UI
+function updateFilesList() {
+  figma.ui.postMessage({
+    type: 'files-updated',
+    files: files,
+    activeFileId: activeFileId || ''
+  });
 }
 
 // Check if user is active
@@ -250,63 +347,43 @@ function updateFileData(duration = 0) {
   if (!currentFile || !currentPage) return;
   
   // Find or create file data
-  let fileData = files.find(f => f.fileId === currentFile?.id);
+  let fileData = files.find(f => f.id === currentFile?.id);
   if (!fileData) {
     fileData = {
-      fileId: currentFile.id,
-      fileName: currentFile.name,
-      isActive: true,
-      lastActive: Date.now(),
-      totalTrackedTime: 0,
-      pages: []
+      id: currentFile.id,
+      name: currentFile.name,
+      pages: {},
+      totalTime: 0
     };
     files.push(fileData);
   } else {
     // Update existing file
-    fileData.fileName = currentFile.name; // Ensure name is up to date
-    fileData.isActive = true;
-    fileData.lastActive = Date.now();
+    fileData.name = currentFile.name; // Ensure name is up to date
   }
   
   // Add duration to total
   if (duration > 0) {
-    fileData.totalTrackedTime += duration;
+    fileData.totalTime += duration;
   }
   
-  // Clear active flag on all files except current
-  files.forEach(f => {
-    if (f.fileId !== currentFile?.id) {
-      f.isActive = false;
-    }
-  });
-  
   // Find or create page data
-  let pageData = fileData.pages.find(p => p.pageId === currentPage?.id);
+  let pageData = fileData.pages[currentPage?.id];
   if (!pageData) {
     pageData = {
-      pageId: currentPage.id,
-      pageName: currentPage.name,
-      isActive: true,
-      trackedTime: 0
+      id: currentPage.id,
+      name: currentPage.name,
+      totalTime: 0
     };
-    fileData.pages.push(pageData);
+    fileData.pages[currentPage?.id] = pageData;
   } else {
     // Update existing page
-    pageData.pageName = currentPage.name; // Ensure name is up to date
-    pageData.isActive = true;
+    pageData.name = currentPage.name; // Ensure name is up to date
   }
   
   // Add duration to page
   if (duration > 0) {
-    pageData.trackedTime += duration;
+    pageData.totalTime += duration;
   }
-  
-  // Clear active flag on all pages except current
-  fileData.pages.forEach(p => {
-    if (p.pageId !== currentPage?.id) {
-      p.isActive = false;
-    }
-  });
   
   // Save the data
   savePluginData();
@@ -327,7 +404,7 @@ function savePluginData() {
   figma.ui.postMessage({
     type: 'files-updated',
     files: files,
-    activeFileId: currentFile?.id
+    activeFileId: activeFileId || ''
   });
   
   // Also save to Firebase if we have a user ID
@@ -361,9 +438,9 @@ function loadPluginData() {
         
         // Mark all files and pages as inactive initially
         files.forEach(file => {
-          file.isActive = false;
-          file.pages.forEach(page => {
-            page.isActive = false;
+          file.totalTime = 0;
+          Object.values(file.pages).forEach(page => {
+            page.totalTime = 0;
           });
         });
         
@@ -389,33 +466,40 @@ function handleActivity() {
   }
 }
 
+// Get Firebase configuration
+async function getFirebaseConfig(): Promise<any> {
+  // Default configuration or fetch from server
+  return {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    databaseURL: "https://YOUR_PROJECT_ID.firebaseio.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+}
+
 // Set up the plugin
 async function initializePlugin() {
-  // Create the UI
-  figma.showUI(__html__, { width: 320, height: 520 });
+  console.log('Initializing plugin...');
+  const userId = await generateUserId();
+  
+  // Load Firebase config
+  const firebaseConfig = await getFirebaseConfig();
+  
+  // Open the UI
+  figma.showUI(__html__, { width: 360, height: 480 });
+  
+  // Send Firebase config to UI
+  figma.ui.postMessage({
+    type: 'firebase-config',
+    config: firebaseConfig,
+    userId: userId
+  });
   
   // Load saved data
   loadPluginData();
-  
-  try {
-    // Get the user ID
-    userId = await getUserId();
-    
-    // Send Firebase config to UI
-    figma.ui.postMessage({
-      type: 'firebase-config',
-      config: firebaseConfig,
-      userId: userId
-    });
-    
-    // Load data from Firebase
-    figma.ui.postMessage({
-      type: 'load-from-firebase',
-      userId: userId
-    });
-  } catch (error) {
-    console.error('Error getting user ID:', error);
-  }
   
   // Set up event listeners for user activity
   figma.on('selectionchange', handleActivity);
@@ -441,85 +525,6 @@ async function initializePlugin() {
   
   // Log the initialization
   console.log('Plugin initialized and tracking started');
-}
-
-// Merge data from Firebase with local data
-function mergeFirebaseData(firebaseFiles: Array<FileData>) {
-  if (!firebaseFiles || firebaseFiles.length === 0) {
-    console.log('No Firebase data to merge');
-    return;
-  }
-  
-  // For each Firebase file
-  firebaseFiles.forEach(firebaseFile => {
-    // Find matching local file
-    const localFile = files.find(f => f.fileId === firebaseFile.fileId);
-    
-    if (localFile) {
-      // Update local file with Firebase data
-      console.log(`Updating local file ${firebaseFile.fileId} with Firebase data`);
-      
-      // Keep the latest active state
-      const isActive = localFile.isActive;
-      const lastActive = Math.max(localFile.lastActive, firebaseFile.lastActive);
-      
-      // Use larger tracked time
-      const totalTrackedTime = Math.max(localFile.totalTrackedTime, firebaseFile.totalTrackedTime);
-      
-      // Update file data
-      localFile.fileName = firebaseFile.fileName;
-      localFile.lastActive = lastActive;
-      localFile.totalTrackedTime = totalTrackedTime;
-      localFile.isActive = isActive;
-      
-      // Merge pages
-      if (firebaseFile.pages && firebaseFile.pages.length > 0) {
-        firebaseFile.pages.forEach(firebasePage => {
-          const localPage = localFile.pages.find(p => p.pageId === firebasePage.pageId);
-          
-          if (localPage) {
-            // Keep the latest active state
-            const isPageActive = localPage.isActive;
-            
-            // Use larger tracked time
-            const trackedTime = Math.max(localPage.trackedTime, firebasePage.trackedTime);
-            
-            // Update page data
-            localPage.pageName = firebasePage.pageName;
-            localPage.trackedTime = trackedTime;
-            localPage.isActive = isPageActive;
-          } else {
-            // Add new page from Firebase
-            localFile.pages.push({
-              pageId: firebasePage.pageId,
-              pageName: firebasePage.pageName,
-              isActive: false,
-              trackedTime: firebasePage.trackedTime
-            });
-          }
-        });
-      }
-    } else {
-      // Add new file from Firebase
-      console.log(`Adding new file ${firebaseFile.fileId} from Firebase`);
-      
-      // Make sure it's not active initially
-      firebaseFile.isActive = false;
-      
-      // Make sure all pages are not active
-      if (firebaseFile.pages) {
-        firebaseFile.pages.forEach(page => {
-          page.isActive = false;
-        });
-      }
-      
-      files.push(firebaseFile);
-    }
-  });
-  
-  // Update current file and page after merging
-  updateFileAndPage();
-  updateFileData();
 }
 
 // Handle messages from the UI
@@ -554,6 +559,62 @@ figma.ui.onmessage = (msg: any) => {
   }
 };
 
+// Merge data from Firebase with local data
+function mergeFirebaseData(firebaseFiles: FileData[]) {
+  console.log(`Merging ${firebaseFiles.length} files from Firebase`);
+  
+  if (!firebaseFiles || firebaseFiles.length === 0) {
+    console.log('No files to merge from Firebase');
+    return;
+  }
+  
+  firebaseFiles.forEach(firebaseFile => {
+    // Find matching local file
+    const localFile = files.find(f => f.id === firebaseFile.id);
+    
+    if (localFile) {
+      // Update local file with Firebase data
+      console.log(`Updating local file ${firebaseFile.id} with Firebase data`);
+      
+      // Use larger tracked time
+      const totalTime = Math.max(localFile.totalTime, firebaseFile.totalTime);
+      
+      // Update file data
+      localFile.name = firebaseFile.name;
+      localFile.totalTime = totalTime;
+      
+      // Merge pages
+      if (firebaseFile.pages && Object.keys(firebaseFile.pages).length > 0) {
+        Object.entries(firebaseFile.pages).forEach(([pageId, pageData]) => {
+          const localPage = localFile.pages[pageId];
+          
+          if (localPage) {
+            // Use larger tracked time
+            const trackedTime = Math.max(localPage.totalTime, pageData.totalTime);
+            
+            // Update page data
+            localPage.name = pageData.name;
+            localPage.totalTime = trackedTime;
+          } else {
+            // Add new page from Firebase
+            localFile.pages[pageId] = {
+              id: pageId,
+              name: pageData.name,
+              totalTime: pageData.totalTime
+            };
+          }
+        });
+      }
+    } else {
+      // Add new file from Firebase
+      console.log(`Adding new file ${firebaseFile.id} from Firebase`);
+      
+      // Add the file to local files
+      files.push(firebaseFile);
+    }
+  });
+}
+
 // Initialize the plugin
 initializePlugin();
 
@@ -568,3 +629,16 @@ figma.on('close', () => {
   clearInterval(activityInterval);
   clearInterval(fileCheckInterval);
 });
+
+// Format time in HH:MM:SS
+function formatTime(ms: number): string {
+  const seconds = Math.floor(ms / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  
+  const formattedHours = hours.toString().padStart(2, '0');
+  const formattedMinutes = (minutes % 60).toString().padStart(2, '0');
+  const formattedSeconds = (seconds % 60).toString().padStart(2, '0');
+  
+  return `${formattedHours}:${formattedMinutes}:${formattedSeconds}`;
+}
