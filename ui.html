@@ -1,237 +1,316 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8">
-  <title>Figma Time Tracking</title>
   <style>
     body {
-      font-family: Inter, Roboto, sans-serif;
-      font-size: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
       margin: 0;
-      padding: 12px;
+      padding: 16px;
+      font-size: 12px;
       color: #333;
-      overflow: hidden;
-      max-height: 500px;
     }
-    
-    * {
-      box-sizing: border-box;
-    }
-    
     .container {
       display: flex;
       flex-direction: column;
-      height: 100%;
-      max-width: 300px;
+      gap: 12px;
     }
-    
-    .header {
-      padding: 8px 0;
-      border-bottom: 1px solid #e5e5e5;
-      margin-bottom: 12px;
-    }
-    
-    .title {
+    h2 {
+      margin: 0 0 8px 0;
       font-size: 16px;
       font-weight: 600;
-      margin: 0 0 4px 0;
     }
-    
-    .subtitle {
-      color: #888;
-      margin: 0;
-    }
-    
-    .current-tracking {
-      background-color: #f5f5f5;
-      border-radius: 6px;
-      padding: 12px;
-      margin-bottom: 16px;
-    }
-    
-    .current-tracking h3 {
-      margin: 0 0 8px 0;
-      font-size: 13px;
-      font-weight: 500;
-    }
-    
-    .tracking-row {
+    .row {
       display: flex;
-      justify-content: space-between;
-      margin-bottom: 4px;
+      align-items: center;
+      gap: 8px;
     }
-    
-    .tracking-row label {
-      color: #666;
+    input, select {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      padding: 8px;
+      flex-grow: 1;
+      font-size: 12px;
     }
-    
-    #timer {
-      font-size: 24px;
+    button {
+      border: 1px solid #ccc;
+      background: #fff;
+      border-radius: 4px;
+      padding: 8px 16px;
+      cursor: pointer;
+      font-size: 12px;
       font-weight: 500;
+      transition: all 0.2s;
+    }
+    button:hover {
+      background: #f5f5f5;
+    }
+    button.primary {
+      background: #18a0fb;
+      color: white;
+      border-color: #18a0fb;
+    }
+    button.primary:hover {
+      background: #0078d4;
+    }
+    button.danger {
+      background: #f14a4a;
+      color: white;
+      border-color: #f14a4a;
+    }
+    button.danger:hover {
+      background: #d13838;
+    }
+    .timer {
+      font-size: 20px;
+      font-weight: 600;
       text-align: center;
       margin: 10px 0;
-      font-variant-numeric: tabular-nums;
     }
-    
-    .btn {
-      background-color: #18a0fb;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      padding: 8px 16px;
+    .status {
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .status-active {
+      color: #18a0fb;
       font-weight: 500;
-      cursor: pointer;
-      transition: background-color 0.2s;
     }
-    
-    .btn:hover {
-      background-color: #0d8ee9;
-    }
-    
-    .btn-secondary {
-      background-color: #f5f5f5;
-      color: #333;
-      border: 1px solid #e5e5e5;
-    }
-    
-    .btn-secondary:hover {
-      background-color: #e5e5e5;
-    }
-    
-    .btn-danger {
-      background-color: #e53935;
-    }
-    
-    .btn-danger:hover {
-      background-color: #d32f2f;
-    }
-    
-    .action-buttons {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    
-    .section {
-      margin-bottom: 16px;
-    }
-    
-    .section-title {
-      font-size: 13px;
+    .status-error {
+      color: #f14a4a;
       font-weight: 500;
-      margin: 0 0 8px 0;
+    }
+    .recent-entries {
+      margin-top: 16px;
+      border-top: 1px solid #eee;
+      padding-top: 8px;
+    }
+    .entry {
+      border-bottom: 1px solid #eee;
+      padding: 8px 0;
       display: flex;
       justify-content: space-between;
-      align-items: center;
     }
-    
+    .error-message {
+      color: #f14a4a;
+      margin: 10px 0;
+      padding: 8px;
+      border: 1px solid #f14a4a;
+      border-radius: 4px;
+      background-color: rgba(241, 74, 74, 0.1);
+      font-size: 12px;
+      display: none;
+    }
     .file-row {
       display: flex;
       justify-content: space-between;
-      padding: 6px 8px;
-      border-radius: 4px;
-      margin-bottom: 2px;
+      padding: 8px 0;
+      border-bottom: 1px solid #eee;
     }
-    
-    .file-row.active {
-      background-color: #f0f9ff;
-    }
-    
     .file-name {
       font-weight: 500;
-      flex: 1;
     }
-    
     .file-time {
       color: #666;
-      font-variant-numeric: tabular-nums;
     }
-    
-    .page-list {
-      margin-left: 8px;
-      margin-bottom: 8px;
-    }
-    
     .page-row {
       display: flex;
       justify-content: space-between;
-      padding: 4px 8px;
-      border-radius: 4px;
+      padding: 4px 0 4px 16px;
+      font-size: 11px;
+      color: #666;
     }
-    
     .page-row.active {
+      background-color: rgba(24, 160, 251, 0.05);
+      border-radius: 3px;
+      padding-left: 8px;
+      padding-right: 4px;
+    }
+    .timer-indicator {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #4caf50;
+      margin-left: 5px;
+      position: relative;
+    }
+    .timer-indicator::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background-color: rgba(76, 175, 80, 0.4);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+        opacity: 1;
+      }
+      100% {
+        transform: scale(2.5);
+        opacity: 0;
+      }
+    }
+    .daily-summary {
+      margin-top: 16px;
+      border-top: 1px solid #eee;
+      padding-top: 8px;
+    }
+    .summary-title {
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .files-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .file-card {
+      border: 1px solid #eee;
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 8px;
+      background-color: #fafafa;
+      transition: all 0.2s ease;
+    }
+    .file-card.active {
+      border-color: #18a0fb;
       background-color: #f0f9ff;
+      box-shadow: 0 2px 4px rgba(24, 160, 251, 0.1);
     }
-    
-    .page-name {
+    .file-card.tracking {
+      border-color: #4caf50;
+      box-shadow: 0 2px 4px rgba(76, 175, 80, 0.2);
+    }
+    .file-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid #eee;
+    }
+    .file-name {
+      font-weight: 500;
+      font-size: 13px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .active-indicator {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      background-color: #18a0fb;
+      border-radius: 50%;
+      margin-right: 4px;
+    }
+    .file-time {
+      font-weight: 600;
+      color: #18a0fb;
+    }
+    .pages-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding-left: 8px;
+    }
+    .total-time {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #eee;
+      text-align: right;
+      font-weight: 600;
+      color: #333;
+    }
+    .inactive-notice {
+      margin-top: 8px;
       font-size: 11px;
-      color: #555;
+      color: #666;
+      text-align: center;
     }
-    
-    .page-time {
-      font-size: 11px;
-      color: #888;
-      font-variant-numeric: tabular-nums;
-    }
-    
-    #error-container {
-      background-color: #ffebee;
-      color: #c62828;
-      padding: 8px;
+    .current-file {
+      background-color: #f5f9ff;
       border-radius: 4px;
-      margin-bottom: 12px;
-      display: none;
-    }
-    
-    #success-container {
-      background-color: #e8f5e9;
-      color: #2e7d32;
       padding: 8px;
-      border-radius: 4px;
-      margin-bottom: 12px;
-      display: none;
+      margin: 8px 0;
+    }
+    .current-file .file-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .current-file .label {
+      font-weight: 500;
+      font-size: 10px;
+      color: #666;
+      text-transform: uppercase;
+    }
+    .current-file .value {
+      font-weight: 500;
+    }
+    .page-row.tracking {
+      background-color: rgba(76, 175, 80, 0.05);
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <div class="header">
-      <h1 class="title">Figma Time Tracking</h1>
-      <p class="subtitle">Automatic tracking of your design time</p>
+    <h2>Figma Time Tracking</h2>
+    
+    <div class="error-message" id="error-container">
+      An error occurred. Time data will not be saved remotely.
     </div>
     
-    <div id="error-container"></div>
-    <div id="success-container"></div>
-    
-    <div class="current-tracking">
-      <h3>Current Tracking</h3>
-      <div class="tracking-row">
-        <label>File:</label>
-        <span id="current-file">No file selected</span>
-      </div>
-      <div class="tracking-row">
-        <label>Page:</label>
-        <span id="current-page">No page selected</span>
-      </div>
-      <div id="timer">00:00:00</div>
-      
-      <div class="action-buttons">
-        <button id="start-btn" class="btn">Start Tracking</button>
-        <button id="stop-btn" class="btn btn-danger" style="display: none;">Stop Tracking</button>
+    <div class="current-file" id="current-file">
+      <div class="file-info">
+        <div>
+          <span class="label">File:</span>
+          <span class="value" id="current-file-name">Loading...</span>
+        </div>
+        <div>
+          <span class="label">Page:</span>
+          <span class="value" id="current-page-name">Loading...</span>
+        </div>
       </div>
     </div>
     
-    <div class="section">
-      <div class="section-title">
-        <div>Tracked Files</div>
+    <div class="status">
+      <span id="status-text">Not tracking</span>
+    </div>
+    
+    <div class="timer" id="timer">00:00:00</div>
+    
+    <div class="inactive-notice" id="inactive-notice" style="display: none;">
+      Tracking paused due to inactivity (5 minutes)
+    </div>
+    
+    <div class="row">
+      <button id="start-btn" class="primary">Start Tracking</button>
+      <button id="stop-btn" class="danger" style="display: none;">Stop Tracking</button>
+    </div>
+    
+    <div class="daily-summary">
+      <div class="summary-title">Your Tracked Files</div>
+      <div id="files-container" class="files-list">
+        <!-- Files and their pages will be added here -->
       </div>
-      <div id="file-list">
-        <div>No files tracked yet</div>
+    </div>
+    
+    <div class="recent-entries">
+      <h2>Recent Time Entries</h2>
+      <div id="entries-container">
+        <!-- Time entries will be added here -->
       </div>
     </div>
   </div>
-  
+
   <!-- Load Firebase dynamically to avoid CORS issues -->
   <script>
     let firebaseConfig = null;
@@ -283,8 +362,11 @@
       startTime = initialStartTime || Date.now();
       
       // Update the UI
+      document.getElementById('status-text').textContent = 'Currently tracking';
+      document.getElementById('status-text').className = 'status-active';
       document.getElementById('start-btn').style.display = 'none';
       document.getElementById('stop-btn').style.display = 'inline-block';
+      document.getElementById('inactive-notice').style.display = 'none';
       
       // Start a timer to update the display
       updateTimer();
@@ -304,18 +386,16 @@
       
       // Update the UI
       document.getElementById('timer').textContent = '00:00:00';
+      document.getElementById('status-text').textContent = 'Not tracking';
+      document.getElementById('status-text').className = '';
       document.getElementById('start-btn').style.display = 'inline-block';
       document.getElementById('stop-btn').style.display = 'none';
-      
-      // Update current file and page
-      document.getElementById('current-file').textContent = 'No file selected';
-      document.getElementById('current-page').textContent = 'No page selected';
     }
     
     // Update the file list display
     function updateFileList(files, currentActiveFileId) {
-      const fileListElement = document.getElementById('file-list');
-      fileListElement.innerHTML = '';
+      const filesContainer = document.getElementById('files-container');
+      filesContainer.innerHTML = '';
       
       // Store all files for future reference
       allFiles = files || [];
@@ -331,7 +411,7 @@
       });
       
       if (!allFiles || allFiles.length === 0) {
-        fileListElement.innerHTML = '<div>No files tracked yet</div>';
+        filesContainer.innerHTML = '<div>No files tracked yet</div>';
         return;
       }
       
@@ -349,11 +429,15 @@
         return (b.lastActive || 0) - (a.lastActive || 0);
       });
       
-      // Create file rows
+      // Create file cards
       sortedFiles.forEach(file => {
-        const fileRow = document.createElement('div');
         const isCurrentlyActive = file.fileId === activeFileId;
-        fileRow.className = `file-row ${isCurrentlyActive ? 'active' : ''}`;
+        
+        const fileCard = document.createElement('div');
+        fileCard.className = `file-card ${isCurrentlyActive ? 'active' : ''}`;
+        
+        const fileHeader = document.createElement('div');
+        fileHeader.className = 'file-header';
         
         const fileName = document.createElement('div');
         fileName.className = 'file-name';
@@ -361,8 +445,7 @@
         // Add indicator for active file
         if (isCurrentlyActive) {
           const activeIndicator = document.createElement('span');
-          activeIndicator.textContent = '● ';
-          activeIndicator.style.color = '#18a0fb';
+          activeIndicator.className = 'active-indicator';
           fileName.appendChild(activeIndicator);
         }
         
@@ -374,14 +457,14 @@
         fileTime.className = 'file-time';
         fileTime.textContent = formatTimeDisplay(file.totalTrackedTime);
         
-        fileRow.appendChild(fileName);
-        fileRow.appendChild(fileTime);
-        fileListElement.appendChild(fileRow);
+        fileHeader.appendChild(fileName);
+        fileHeader.appendChild(fileTime);
+        fileCard.appendChild(fileHeader);
         
-        // Create page list if file is active or if it's the current file
-        if ((file.isActive || isCurrentlyActive) && file.pages && file.pages.length > 0) {
-          const pageList = document.createElement('div');
-          pageList.className = 'page-list';
+        // Create page list if it has pages
+        if (file.pages && file.pages.length > 0) {
+          const pagesList = document.createElement('div');
+          pagesList.className = 'pages-list';
           
           // Sort pages with active page first, then by tracked time
           const sortedPages = [...file.pages].sort((a, b) => {
@@ -423,13 +506,15 @@
             
             pageRow.appendChild(pageName);
             pageRow.appendChild(pageTime);
-            pageList.appendChild(pageRow);
+            pagesList.appendChild(pageRow);
           });
           
           if (hasPages) {
-            fileListElement.appendChild(pageList);
+            fileCard.appendChild(pagesList);
           }
         }
+        
+        filesContainer.appendChild(fileCard);
       });
     }
     
@@ -465,7 +550,7 @@
         if (!window.firebase.apps.length) {
           window.firebase.initializeApp(config);
         }
-        showSuccessMessage('Firebase connected successfully');
+        console.log('Firebase connected successfully');
         return true;
       } catch (error) {
         console.error('Error initializing Firebase:', error);
@@ -513,18 +598,6 @@
       }, 5000);
     }
     
-    // Show success message
-    function showSuccessMessage(message) {
-      const successContainer = document.getElementById('success-container');
-      successContainer.textContent = message;
-      successContainer.style.display = 'block';
-      
-      // Hide after 3 seconds
-      setTimeout(() => {
-        successContainer.style.display = 'none';
-      }, 3000);
-    }
-    
     // Set up event listeners
     document.getElementById('start-btn').addEventListener('click', () => {
       // Tell the plugin to start tracking
@@ -555,16 +628,18 @@
           break;
           
         case 'tracking-status':
-          if (message.isTracking) {
-            // Update the current file and page
-            document.getElementById('current-file').textContent = message.fileName;
-            document.getElementById('current-page').textContent = message.pageName;
-            
+          // Update the current file and page display
+          document.getElementById('current-file-name').textContent = message.fileName || 'Not selected';
+          document.getElementById('current-page-name').textContent = message.pageName || 'Not selected';
+          
+          if (message.isTracking && message.startTime) {
             // Start or update the timer
             startTimer(message.startTime);
+            console.log(`Tracking started at ${new Date(message.startTime).toLocaleTimeString()}`);
           } else {
             // Stop the timer
             stopTimer();
+            console.log('Tracking stopped');
           }
           break;
           
@@ -576,6 +651,9 @@
         case 'file-changed':
           // Update the current active file
           activeFileId = message.fileId;
+          
+          // Update file name display
+          document.getElementById('current-file-name').textContent = message.fileName || 'Not selected';
           
           // Update the file list to reflect the change
           updateFileList(allFiles, activeFileId);
@@ -594,6 +672,9 @@
     
     // Check tracking status on load
     window.onload = () => {
+      // Hide the inactive notice initially
+      document.getElementById('inactive-notice').style.display = 'none';
+      
       // Check if we're currently tracking
       parent.postMessage({ pluginMessage: { type: 'check-tracking-status' } }, '*');
     };
