@@ -74,7 +74,7 @@ function checkFileChange() {
   
   // If we have a different file than before, handle the change
   if (currentFileId !== currentFile?.id) {
-    console.log(`File changed from ${currentFile?.id} to ${currentFileId}`);
+    console.log(`File changed from ${currentFile?.id || 'none'} to ${currentFileId}`);
     handleFileChange(currentFileId);
   }
 }
@@ -82,6 +82,12 @@ function checkFileChange() {
 // Handle file change
 function handleFileChange(newFileId: string) {
   if (!newFileId) return;
+  
+  console.log('Handling file change:', {
+    newFileId,
+    previousFileId: currentFile?.id || null,
+    wasTracking: isTracking
+  });
   
   // Save previous file ID
   previousFileId = currentFile?.id || null;
@@ -95,7 +101,7 @@ function handleFileChange(newFileId: string) {
   updateFileAndPage();
   
   // If we were tracking before, start tracking the new file
-  if (previousFileId && isTracking) {
+  if (previousFileId) {
     startTracking();
   }
   
@@ -219,6 +225,13 @@ function checkActivity() {
 // Update tracking status in UI
 function updateTrackingStatus() {
   if (!figma.ui) return;
+  
+  console.log('Updating tracking status:', {
+    isTracking,
+    fileId: currentFile?.id,
+    fileName: currentFile?.name,
+    startTime: trackingStartTime
+  });
   
   figma.ui.postMessage({
     type: 'tracking-status',
@@ -391,6 +404,12 @@ async function initializePlugin() {
   // Update file and page initially
   updateFileAndPage();
   updateFileData();
+  
+  // Start tracking automatically when plugin loads
+  handleActivity();
+  
+  // Log the initialization
+  console.log('Plugin initialized and tracking started');
 }
 
 // Handle messages from the UI
