@@ -4,266 +4,242 @@
   <meta charset="utf-8">
   <title>Figma Time Tracking</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    
     body {
-      font-family: 'Inter', sans-serif;
-      font-size: 14px;
-      color: #333;
+      font-family: Inter, Roboto, sans-serif;
+      font-size: 12px;
+      margin: 0;
       padding: 12px;
-      overflow-x: hidden;
+      color: #333;
+      overflow: hidden;
+      max-height: 500px;
     }
     
-    h1 {
-      font-size: 16px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      color: #333;
-    }
-    
-    h2 {
-      font-size: 14px;
-      font-weight: 600;
-      margin: 16px 0 8px;
-      color: #333;
+    * {
+      box-sizing: border-box;
     }
     
     .container {
       display: flex;
       flex-direction: column;
       height: 100%;
+      max-width: 300px;
     }
     
-    .tracking-container {
-      margin-bottom: 16px;
-      padding: 12px;
-      border-radius: 8px;
-      background-color: #f5f5f5;
-    }
-    
-    .tracking-status {
-      display: flex;
-      flex-direction: column;
+    .header {
+      padding: 8px 0;
+      border-bottom: 1px solid #e5e5e5;
       margin-bottom: 12px;
     }
     
-    .tracking-label {
-      font-size: 12px;
+    .title {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 0 0 4px 0;
+    }
+    
+    .subtitle {
+      color: #888;
+      margin: 0;
+    }
+    
+    .current-tracking {
+      background-color: #f5f5f5;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .current-tracking h3 {
+      margin: 0 0 8px 0;
+      font-size: 13px;
       font-weight: 500;
-      color: #666;
+    }
+    
+    .tracking-row {
+      display: flex;
+      justify-content: space-between;
       margin-bottom: 4px;
     }
     
-    .tracking-value {
-      font-size: 14px;
-      font-weight: 600;
-      color: #333;
+    .tracking-row label {
+      color: #666;
     }
     
-    .timer {
-      font-size: 18px;
-      font-weight: 600;
-      margin: 8px 0;
-      color: #333;
+    #timer {
+      font-size: 24px;
+      font-weight: 500;
+      text-align: center;
+      margin: 10px 0;
+      font-variant-numeric: tabular-nums;
     }
     
     .btn {
-      display: inline-block;
+      background-color: #18a0fb;
+      color: white;
       border: none;
+      border-radius: 6px;
       padding: 8px 16px;
-      border-radius: 4px;
-      font-size: 14px;
       font-weight: 500;
       cursor: pointer;
       transition: background-color 0.2s;
-      margin-right: 8px;
-      margin-bottom: 8px;
     }
     
-    .btn-primary {
-      background-color: #18a0fb;
-      color: white;
-    }
-    
-    .btn-primary:hover {
-      background-color: #0d8de3;
+    .btn:hover {
+      background-color: #0d8ee9;
     }
     
     .btn-secondary {
-      background-color: #e5e5e5;
+      background-color: #f5f5f5;
       color: #333;
+      border: 1px solid #e5e5e5;
     }
     
     .btn-secondary:hover {
-      background-color: #d5d5d5;
+      background-color: #e5e5e5;
     }
     
-    .file-list {
-      margin-top: 16px;
-      overflow-y: auto;
-      max-height: 300px;
+    .btn-danger {
+      background-color: #e53935;
+    }
+    
+    .btn-danger:hover {
+      background-color: #d32f2f;
+    }
+    
+    .action-buttons {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    
+    .section {
+      margin-bottom: 16px;
+    }
+    
+    .section-title {
+      font-size: 13px;
+      font-weight: 500;
+      margin: 0 0 8px 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     
     .file-row {
       display: flex;
       justify-content: space-between;
-      padding: 8px 12px;
+      padding: 6px 8px;
       border-radius: 4px;
-      margin-bottom: 8px;
-      cursor: pointer;
-      transition: background-color 0.2s;
-    }
-    
-    .file-row:hover {
-      background-color: #f5f5f5;
+      margin-bottom: 2px;
     }
     
     .file-row.active {
-      background-color: #e6f7ff;
-      border-left: 3px solid #18a0fb;
+      background-color: #f0f9ff;
     }
     
     .file-name {
       font-weight: 500;
       flex: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
     }
     
     .file-time {
-      font-weight: 600;
-      margin-left: 8px;
+      color: #666;
+      font-variant-numeric: tabular-nums;
     }
     
     .page-list {
-      margin-left: 24px;
+      margin-left: 8px;
+      margin-bottom: 8px;
     }
     
     .page-row {
       display: flex;
       justify-content: space-between;
-      padding: 6px 12px;
+      padding: 4px 8px;
       border-radius: 4px;
-      margin-bottom: 4px;
-      font-size: 13px;
     }
     
     .page-row.active {
       background-color: #f0f9ff;
-      border-left: 2px solid #69c0ff;
     }
     
     .page-name {
-      font-weight: 400;
-      flex: 1;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      font-size: 11px;
+      color: #555;
     }
     
     .page-time {
-      font-weight: 500;
-      margin-left: 8px;
+      font-size: 11px;
+      color: #888;
+      font-variant-numeric: tabular-nums;
     }
     
-    .loading {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100px;
-    }
-    
-    .spinner {
-      border: 3px solid #f3f3f3;
-      border-top: 3px solid #18a0fb;
-      border-radius: 50%;
-      width: 24px;
-      height: 24px;
-      animation: spin 1s linear infinite;
-    }
-    
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    
-    .error-message {
-      color: #e53e3e;
-      margin: 8px 0;
+    #error-container {
+      background-color: #ffebee;
+      color: #c62828;
       padding: 8px;
-      background-color: #fff5f5;
       border-radius: 4px;
-      font-size: 13px;
+      margin-bottom: 12px;
+      display: none;
     }
     
-    .success-message {
-      color: #38a169;
-      margin: 8px 0;
+    #success-container {
+      background-color: #e8f5e9;
+      color: #2e7d32;
       padding: 8px;
-      background-color: #f0fff4;
       border-radius: 4px;
-      font-size: 13px;
-    }
-    
-    .footer {
-      margin-top: 16px;
-      padding-top: 8px;
-      border-top: 1px solid #e5e5e5;
-      text-align: center;
-      font-size: 12px;
-      color: #999;
+      margin-bottom: 12px;
+      display: none;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Figma Time Tracking</h1>
+    <div class="header">
+      <h1 class="title">Figma Time Tracking</h1>
+      <p class="subtitle">Automatic tracking of your design time</p>
+    </div>
     
-    <div id="tracking-container" class="tracking-container">
-      <div class="tracking-status">
-        <div>
-          <span class="tracking-label">File:</span>
-          <span id="current-file" class="tracking-value">No file selected</span>
-        </div>
-        <div>
-          <span class="tracking-label">Page:</span>
-          <span id="current-page" class="tracking-value">No page selected</span>
-        </div>
+    <div id="error-container"></div>
+    <div id="success-container"></div>
+    
+    <div class="current-tracking">
+      <h3>Current Tracking</h3>
+      <div class="tracking-row">
+        <label>File:</label>
+        <span id="current-file">No file selected</span>
       </div>
+      <div class="tracking-row">
+        <label>Page:</label>
+        <span id="current-page">No page selected</span>
+      </div>
+      <div id="timer">00:00:00</div>
       
-      <div id="timer" class="timer">00:00:00</div>
-      
-      <div>
-        <button id="start-btn" class="btn btn-primary">Start Tracking</button>
-        <button id="stop-btn" class="btn btn-secondary" style="display: none;">Stop Tracking</button>
+      <div class="action-buttons">
+        <button id="start-btn" class="btn">Start Tracking</button>
+        <button id="stop-btn" class="btn btn-danger" style="display: none;">Stop Tracking</button>
       </div>
     </div>
     
-    <h2>Tracked Files</h2>
-    <div id="file-list" class="file-list">
-      <div class="loading">
-        <div class="spinner"></div>
+    <div class="section">
+      <div class="section-title">
+        <div>Tracked Files</div>
       </div>
-    </div>
-    
-    <div id="error-container" class="error-message" style="display: none;"></div>
-    <div id="success-container" class="success-message" style="display: none;"></div>
-    
-    <div class="footer">
-      Time tracking data is stored locally and in Firebase.
+      <div id="file-list">
+        <div>No files tracked yet</div>
+      </div>
     </div>
   </div>
-
+  
+  <!-- Load Firebase dynamically to avoid CORS issues -->
   <script>
     let firebaseConfig = null;
     let userId = null;
     let currentTimer = null;
     let startTime = null;
+    let allFiles = []; // Store all files
+    let activeFileId = null; // Currently active file ID
     
     // Format time in HH:MM:SS format
     function formatTime(seconds) {
@@ -337,33 +313,62 @@
     }
     
     // Update the file list display
-    function updateFileList(files) {
+    function updateFileList(files, currentActiveFileId) {
       const fileListElement = document.getElementById('file-list');
       fileListElement.innerHTML = '';
       
-      if (!files || files.length === 0) {
+      // Store all files for future reference
+      allFiles = files || [];
+      
+      // Update the active file ID
+      if (currentActiveFileId) {
+        activeFileId = currentActiveFileId;
+      }
+      
+      console.log('Updating file list:', { 
+        filesCount: allFiles.length, 
+        activeFileId: activeFileId 
+      });
+      
+      if (!allFiles || allFiles.length === 0) {
         fileListElement.innerHTML = '<div>No files tracked yet</div>';
         return;
       }
       
-      // Sort files by last active time (most recent first)
-      const sortedFiles = [...files].sort((a, b) => {
-        // If one file is active, it should be first
+      // Sort files with active file first, then by last active time (most recent first)
+      const sortedFiles = [...allFiles].sort((a, b) => {
+        // Active file always first
+        if (a.fileId === activeFileId) return -1;
+        if (b.fileId === activeFileId) return 1;
+        
+        // Then by isActive flag
         if (a.isActive && !b.isActive) return -1;
         if (!a.isActive && b.isActive) return 1;
         
-        // Sort by last active time
+        // Then by last active time
         return (b.lastActive || 0) - (a.lastActive || 0);
       });
       
       // Create file rows
       sortedFiles.forEach(file => {
         const fileRow = document.createElement('div');
-        fileRow.className = `file-row ${file.isActive ? 'active' : ''}`;
+        const isCurrentlyActive = file.fileId === activeFileId;
+        fileRow.className = `file-row ${isCurrentlyActive ? 'active' : ''}`;
         
         const fileName = document.createElement('div');
         fileName.className = 'file-name';
-        fileName.textContent = file.fileName;
+        
+        // Add indicator for active file
+        if (isCurrentlyActive) {
+          const activeIndicator = document.createElement('span');
+          activeIndicator.textContent = '● ';
+          activeIndicator.style.color = '#18a0fb';
+          fileName.appendChild(activeIndicator);
+        }
+        
+        const fileNameText = document.createElement('span');
+        fileNameText.textContent = file.fileName;
+        fileName.appendChild(fileNameText);
         
         const fileTime = document.createElement('div');
         fileTime.className = 'file-time';
@@ -373,28 +378,44 @@
         fileRow.appendChild(fileTime);
         fileListElement.appendChild(fileRow);
         
-        // Create page list if file is active
-        if (file.isActive && file.pages && file.pages.length > 0) {
+        // Create page list if file is active or if it's the current file
+        if ((file.isActive || isCurrentlyActive) && file.pages && file.pages.length > 0) {
           const pageList = document.createElement('div');
           pageList.className = 'page-list';
           
-          // Sort pages by tracked time (most tracked first)
+          // Sort pages with active page first, then by tracked time
           const sortedPages = [...file.pages].sort((a, b) => {
-            // If one page is active, it should be first
+            // Active page always first
             if (a.isActive && !b.isActive) return -1;
             if (!a.isActive && b.isActive) return 1;
             
-            // Sort by tracked time
+            // Then by tracked time
             return b.trackedTime - a.trackedTime;
           });
           
+          let hasPages = false;
           sortedPages.forEach(page => {
+            // Skip pages with no tracked time unless they're active
+            if (page.trackedTime === 0 && !page.isActive) return;
+            hasPages = true;
+            
             const pageRow = document.createElement('div');
             pageRow.className = `page-row ${page.isActive ? 'active' : ''}`;
             
             const pageName = document.createElement('div');
             pageName.className = 'page-name';
-            pageName.textContent = page.pageName;
+            
+            // Add indicator for active page
+            if (page.isActive) {
+              const activeIndicator = document.createElement('span');
+              activeIndicator.textContent = '• ';
+              activeIndicator.style.color = '#18a0fb';
+              pageName.appendChild(activeIndicator);
+            }
+            
+            const pageNameText = document.createElement('span');
+            pageNameText.textContent = page.pageName;
+            pageName.appendChild(pageNameText);
             
             const pageTime = document.createElement('div');
             pageTime.className = 'page-time';
@@ -405,7 +426,9 @@
             pageList.appendChild(pageRow);
           });
           
-          fileListElement.appendChild(pageList);
+          if (hasPages) {
+            fileListElement.appendChild(pageList);
+          }
         }
       });
     }
@@ -461,7 +484,17 @@
         
         // Create a unique ID for this entry
         const newEntryRef = timeEntriesRef.push();
-        newEntryRef.set(timeEntry);
+        newEntryRef.set(timeEntry)
+          .then(() => {
+            console.log('Time entry saved to Firebase successfully');
+            
+            // Also update file name in Firebase
+            const fileRef = db.ref(`users/${userId}/files/${timeEntry.fileId}`);
+            fileRef.child('name').set(timeEntry.fileName);
+          })
+          .catch(error => {
+            console.error('Error saving time entry to Firebase:', error);
+          });
       } catch (error) {
         console.error('Error saving to Firebase:', error);
         showErrorMessage('Failed to save data to Firebase');
@@ -499,7 +532,7 @@
     });
     
     document.getElementById('stop-btn').addEventListener('click', () => {
-      // This will be handled by the plugin, as it manages the tracking state
+      // Tell the plugin to stop tracking
       parent.postMessage({ pluginMessage: { type: 'stop-tracking' } }, '*');
     });
     
@@ -537,7 +570,17 @@
           
         case 'files-updated':
           // Update the file list
-          updateFileList(message.files);
+          updateFileList(message.files, message.activeFileId);
+          break;
+          
+        case 'file-changed':
+          // Update the current active file
+          activeFileId = message.fileId;
+          
+          // Update the file list to reflect the change
+          updateFileList(allFiles, activeFileId);
+          
+          console.log(`Active file changed to: ${message.fileName} (${message.fileId})`);
           break;
           
         case 'save-time-entry':
