@@ -1,0 +1,1 @@
+{\n  \"compilerOptions\": {\n    \"target\": \"es6\",\n    \"lib\": [\"es6\"],\n    \"strict\": true,\n    \"typeRoots\": [\n      \"./node_modules/@types\"\n    ],\n    \"moduleResolution\": \"node\"\n  }\n}
