@@ -319,6 +319,7 @@
     let startTime = null;
     let allFiles = []; // Store all files
     let activeFileId = null; // Currently active file ID
+    let firebaseDb = null; // Firebase database reference
     
     // Format time in HH:MM:SS format
     function formatTime(seconds) {
@@ -550,6 +551,9 @@
         if (!window.firebase.apps.length) {
           window.firebase.initializeApp(config);
         }
+        
+        // Get database reference
+        firebaseDb = window.firebase.database();
         console.log('Firebase connected successfully');
         return true;
       } catch (error) {
@@ -561,11 +565,10 @@
     
     // Save time entry to Firebase
     function saveTimeEntryToFirebase(timeEntry) {
-      if (!window.firebase) return;
+      if (!firebaseDb || !userId) return;
       
       try {
-        const db = window.firebase.database();
-        const timeEntriesRef = db.ref(`users/${userId}/timeEntries`);
+        const timeEntriesRef = firebaseDb.ref(`users/${userId}/timeEntries`);
         
         // Create a unique ID for this entry
         const newEntryRef = timeEntriesRef.push();
@@ -574,7 +577,7 @@
             console.log('Time entry saved to Firebase successfully');
             
             // Also update file name in Firebase
-            const fileRef = db.ref(`users/${userId}/files/${timeEntry.fileId}`);
+            const fileRef = firebaseDb.ref(`users/${userId}/files/${timeEntry.fileId}`);
             fileRef.child('name').set(timeEntry.fileName);
           })
           .catch(error => {
@@ -583,6 +586,73 @@
       } catch (error) {
         console.error('Error saving to Firebase:', error);
         showErrorMessage('Failed to save data to Firebase');
+      }
+    }
+    
+    // Save files data to Firebase
+    function saveFilesToFirebase(files, uid) {
+      if (!firebaseDb || !uid) {
+        console.error('Firebase not initialized or no user ID');
+        return;
+      }
+      
+      try {
+        const filesRef = firebaseDb.ref(`users/${uid}/files`);
+        
+        // Save each file to Firebase
+        files.forEach(file => {
+          const fileRef = filesRef.child(file.fileId);
+          fileRef.set(file)
+            .then(() => {
+              console.log(`File ${file.fileId} saved to Firebase`);
+            })
+            .catch(error => {
+              console.error(`Error saving file ${file.fileId} to Firebase:`, error);
+            });
+        });
+      } catch (error) {
+        console.error('Error saving files to Firebase:', error);
+        showErrorMessage('Failed to sync files with Firebase');
+      }
+    }
+    
+    // Load files from Firebase
+    function loadFilesFromFirebase(uid) {
+      if (!firebaseDb || !uid) {
+        console.error('Firebase not initialized or no user ID');
+        return;
+      }
+      
+      try {
+        const filesRef = firebaseDb.ref(`users/${uid}/files`);
+        
+        filesRef.once('value')
+          .then(snapshot => {
+            const data = snapshot.val();
+            if (!data) {
+              console.log('No files found in Firebase');
+              return;
+            }
+            
+            // Convert object to array
+            const loadedFiles = Object.keys(data).map(key => data[key]);
+            console.log(`Loaded ${loadedFiles.length} files from Firebase`);
+            
+            // Send files to plugin
+            parent.postMessage({
+              pluginMessage: {
+                type: 'firebase-data-loaded',
+                files: loadedFiles
+              }
+            }, '*');
+          })
+          .catch(error => {
+            console.error('Error loading files from Firebase:', error);
+            showErrorMessage('Failed to load data from Firebase');
+          });
+      } catch (error) {
+        console.error('Error accessing Firebase:', error);
+        showErrorMessage('Failed to connect to Firebase database');
       }
     }
     
@@ -597,17 +667,6 @@
         errorContainer.style.display = 'none';
       }, 5000);
     }
-    
-    // Set up event listeners
-    document.getElementById('start-btn').addEventListener('click', () => {
-      // Tell the plugin to start tracking
-      parent.postMessage({ pluginMessage: { type: 'resume-tracking' } }, '*');
-    });
-    
-    document.getElementById('stop-btn').addEventListener('click', () => {
-      // Tell the plugin to stop tracking
-      parent.postMessage({ pluginMessage: { type: 'stop-tracking' } }, '*');
-    });
     
     // Listen for messages from the plugin
     window.onmessage = async (event) => {
@@ -663,12 +722,37 @@
           
         case 'save-time-entry':
           // Save the time entry to Firebase
-          if (window.firebase) {
+          if (firebaseDb && userId) {
             saveTimeEntryToFirebase(message.timeEntry);
+          }
+          break;
+          
+        case 'save-to-firebase':
+          // Save all files data to Firebase
+          if (firebaseDb && message.userId) {
+            saveFilesToFirebase(message.files, message.userId);
+          }
+          break;
+          
+        case 'load-from-firebase':
+          // Load files from Firebase
+          if (firebaseDb && message.userId) {
+            loadFilesFromFirebase(message.userId);
           }
           break;
       }
     };
+    
+    // Set up event listeners
+    document.getElementById('start-btn').addEventListener('click', () => {
+      // Tell the plugin to start tracking
+      parent.postMessage({ pluginMessage: { type: 'resume-tracking' } }, '*');
+    });
+    
+    document.getElementById('stop-btn').addEventListener('click', () => {
+      // Tell the plugin to stop tracking
+      parent.postMessage({ pluginMessage: { type: 'stop-tracking' } }, '*');
+    });
     
     // Check tracking status on load
     window.onload = () => {
