@@ -599,7 +599,7 @@ async function getFirebaseConfig(): Promise<any> {
   };
 }
 
-// Set up the plugin
+// Initialize the plugin
 async function initializePlugin() {
   console.log('Initializing plugin...');
   userId = await generateUserId();
@@ -651,11 +651,21 @@ async function initializePlugin() {
   updateFileAndPage();
   updateFileData();
   
-  // Start tracking automatically when plugin loads
-  handleActivity();
+  // Wait a bit to ensure UI is loaded before starting tracking
+  setTimeout(() => {
+    // Start tracking automatically when plugin loads
+    console.log('Starting initial tracking...');
+    handleActivity();
+    
+    // Explicitly update UI with tracking status after slight delay
+    setTimeout(() => {
+      updateTrackingStatus();
+      console.log('Sent initial tracking status update to UI');
+    }, 1000);
+  }, 500);
   
   // Log the initialization
-  console.log('Plugin initialized and tracking started');
+  console.log('Plugin initialized');
 }
 
 // Handle messages from the UI
