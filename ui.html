@@ -177,7 +177,7 @@
       <div class="timer-container">
         <div class="timer-display">
           <div class="timer-dot" id="timer-dot"></div>
-          <div class="timer-text" id="timer"></div>
+          <div class="timer-text" id="timer">00:00:00</div>
         </div>
         <div class="file-info" id="file-info">No file selected</div>
         <div class="action-buttons">
@@ -214,7 +214,7 @@
       let activePageName = '';
       let userId = '';
       let currentEntries = [];
-      let updateTimerInterval;
+      let updateTimerInterval = null;
       
       // Initialize Firebase (will be populated from plugin)
       let firebaseConfig = {};
@@ -245,13 +245,20 @@
       
       // Update timer display based on tracking status
       function updateTimerDisplay(tracking, startTime) {
+        console.log('Updating timer display:', { tracking, startTime });
+        
         isTracking = tracking;
+        
+        // Clear any existing timer interval
+        if (updateTimerInterval) {
+          clearInterval(updateTimerInterval);
+          updateTimerInterval = null;
+        }
         
         if (tracking && startTime) {
           trackingStartTime = startTime;
           
           // Start updating the timer every second
-          if (updateTimerInterval) clearInterval(updateTimerInterval);
           updateTimerInterval = setInterval(updateTimer, 1000);
           
           // Show the timer dot as active
@@ -265,7 +272,10 @@
           document.getElementById('stop-btn').disabled = false;
         } else {
           // Stop the timer updates
-          if (updateTimerInterval) clearInterval(updateTimerInterval);
+          if (updateTimerInterval) {
+            clearInterval(updateTimerInterval);
+            updateTimerInterval = null;
+          }
           
           // Reset the timer display
           document.getElementById('timer').textContent = '00:00:00';
@@ -347,8 +357,16 @@
       
       // Save entry to Firebase
       function saveEntryToFirebase(entry) {
-        // TODO: Implement Firebase saving
+        // Firebase implementation
         console.log('Would save entry to Firebase:', entry);
+      }
+      
+      // Initialize Firebase
+      function initializeFirebase(config, uid) {
+        // Firebase implementation
+        console.log('Initializing Firebase with config:', config);
+        userId = uid;
+        firebaseInitialized = true;
       }
       
       // Update the files list with tracked files
@@ -397,17 +415,6 @@
         parent.postMessage({ pluginMessage: { type: 'check-tracking-status' } }, '*');
       }
       
-      // Initialize Firebase
-      function initializeFirebase(config, uid) {
-        // TODO: Initialize Firebase
-        console.log('Initializing Firebase with config:', config);
-        
-        // Store user ID
-        userId = uid;
-        
-        firebaseInitialized = true;
-      }
-      
       // Handle messages from the plugin
       window.onmessage = (event) => {
         const message = event.data.pluginMessage;
@@ -423,6 +430,18 @@
             
           case 'tracking-status':
             isTracking = message.isTracking;
+            
+            // If we're getting a resetTimer flag, ensure we completely reset the timer
+            if (message.resetTimer === true) {
+              console.log('Explicitly resetting timer');
+              if (updateTimerInterval) {
+                clearInterval(updateTimerInterval);
+                updateTimerInterval = null;
+              }
+              document.getElementById('timer').textContent = '00:00:00';
+              document.getElementById('timer-dot').classList.remove('active');
+            }
+            
             updateTimerDisplay(message.isTracking, message.startTime);
             
             // Update active file and page
@@ -432,6 +451,17 @@
             break;
             
           case 'file-changed':
+            // When file changes, always ensure timer is reset first
+            if (message.fileChanged === true) {
+              console.log('File changed, resetting timer display');
+              if (updateTimerInterval) {
+                clearInterval(updateTimerInterval);
+                updateTimerInterval = null;
+              }
+              document.getElementById('timer').textContent = '00:00:00';
+              document.getElementById('timer-dot').classList.remove('active');
+            }
+            
             activeFileId = message.fileId;
             activeFileName = message.fileName;
             updateFileInfo(activeFileName, activePageName);
